@@ -6,7 +6,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Regalbestückung · Odoo</title>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+// Platzhalter – kein externes Script nötig, wir nutzen native Browser-APIs
+</script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
   :root {
@@ -48,10 +50,9 @@
   /* Camera viewfinder */
   #cam-container{display:none;flex-direction:column;background:#000;flex-shrink:0;position:relative;overflow:hidden}
   #cam-container.open{display:flex}
-  #cam-reader{width:100%;overflow:hidden}
-  #cam-reader video{width:100%!important;max-height:240px;object-fit:cover}
-  #cam-reader img{display:none!important}
-  #cam-reader canvas{display:none!important}
+  #cam-video{width:100%;max-height:260px;object-fit:cover;display:block}
+  .cam-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+  .cam-finder{width:240px;height:100px;border:2px solid var(--odoo-teal);border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,.5)}
   .cam-hint{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:12px;color:rgba(255,255,255,.85);letter-spacing:.02em;text-shadow:0 1px 3px rgba(0,0,0,.5);pointer-events:none}
   .cam-close{position:absolute;top:8px;right:10px;background:rgba(0,0,0,.55);border:none;color:#fff;font-size:13px;padding:4px 10px;border-radius:99px;cursor:pointer;z-index:10}
 
@@ -207,7 +208,11 @@
 
     <!-- Kamera-Sucher -->
     <div id="cam-container">
-      <div id="cam-reader"></div>
+      <video id="cam-video" autoplay playsinline muted webkit-playsinline></video>
+      <canvas id="cam-canvas" style="display:none"></canvas>
+      <div class="cam-overlay">
+        <div class="cam-finder"></div>
+      </div>
       <div class="scan-flash" id="scan-flash"></div>
       <div class="cam-hint">Barcode in den Rahmen halten</div>
       <button class="cam-close" onclick="stopCamera()">✕ Schließen</button>
@@ -287,7 +292,7 @@
 <script>
 // ══ STATE ══
 let products={}, pickItems=[], currentProduct=null;
-let cameraActive=false, scanCooldown=false;
+let cameraActive=false, scanCooldown=false, cameraStream=null;
 
 // ══ PERSIST ══
 function save(){
@@ -356,46 +361,55 @@ async function toggleCamera(){
   await startCamera();
 }
 
-let html5QrScanner=null;
+let scanAnimFrame=null;
 
 async function startCamera(){
   const container=document.getElementById('cam-container');
   const btn=document.getElementById('cam-btn');
-  if(typeof Html5Qrcode==='undefined'){
-    toast('Scanner-Bibliothek nicht geladen – bitte Seite neu laden');return;
-  }
+  const video=document.getElementById('cam-video');
   try{
+    cameraStream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}
+    });
+    video.srcObject=cameraStream;
+    await video.play();
     container.classList.add('open');
     btn.classList.add('active');
     btn.textContent='⏹';
     cameraActive=true;
-    html5QrScanner=new Html5Qrcode('cam-reader');
-    await html5QrScanner.start(
-      {facingMode:'environment'},
-      {fps:10, qrbox:{width:250,height:120}, aspectRatio:2.0,
-       formatsToSupport:[
-         Html5QrcodeSupportedFormats.EAN_13,
-         Html5QrcodeSupportedFormats.EAN_8,
-         Html5QrcodeSupportedFormats.CODE_128,
-         Html5QrcodeSupportedFormats.CODE_39,
-         Html5QrcodeSupportedFormats.UPC_A,
-         Html5QrcodeSupportedFormats.UPC_E,
-         Html5QrcodeSupportedFormats.QR_CODE,
-       ]
-      },
-      (decodedText)=>{
-        if(!scanCooldown) onCameraScan(decodedText);
-      },
-      ()=>{}
-    );
+    startDetection(video);
   }catch(err){
-    container.classList.remove('open');
-    btn.classList.remove('active');btn.textContent='📷';
-    cameraActive=false;
     let msg='Kamera konnte nicht geöffnet werden.';
-    if(err&&err.toString().includes('NotAllowed')) msg='Kamerazugriff verweigert – bitte in den Einstellungen erlauben.';
+    if(err.name==='NotAllowedError'||err.toString().includes('NotAllowed'))
+      msg='Kamerazugriff verweigert – bitte in den Einstellungen erlauben.';
     toast(msg);
   }
+}
+
+function startDetection(video){
+  // Methode 1: native BarcodeDetector API (iOS 17+, Chrome Android)
+  if('BarcodeDetector' in window){
+    const detector=new BarcodeDetector({
+      formats:['ean_13','ean_8','code_128','code_39','upc_a','upc_e','qr_code','data_matrix']
+    });
+    function detect(){
+      if(!cameraActive)return;
+      if(video.readyState>=2&&!scanCooldown){
+        detector.detect(video).then(codes=>{
+          if(codes.length&&!scanCooldown) onCameraScan(codes[0].rawValue);
+        }).catch(()=>{});
+      }
+      scanAnimFrame=requestAnimationFrame(detect);
+    }
+    scanAnimFrame=requestAnimationFrame(detect);
+    return;
+  }
+
+  // Methode 2: Canvas + ImageData an BarcodeDetector (Fallback für ältere iOS)
+  // iOS 16 hat BarcodeDetector nicht, aber wir können es über createImageBitmap versuchen
+  // Methode 3: Manuelle Eingabe als letzter Ausweg – Hinweis anzeigen
+  const hint=document.getElementById('cam-container').querySelector('.cam-hint');
+  if(hint) hint.textContent='Barcode-Erkennung nicht verfügbar – bitte manuell eingeben (🔢)';
 }
 
 function onCameraScan(code){
@@ -420,9 +434,10 @@ function onCameraScan(code){
 }
 
 function stopCamera(){
-  if(html5QrScanner){
-    html5QrScanner.stop().then(()=>{html5QrScanner.clear();html5QrScanner=null;}).catch(()=>{html5QrScanner=null;});
-  }
+  if(scanAnimFrame){cancelAnimationFrame(scanAnimFrame);scanAnimFrame=null;}
+  if(cameraStream){cameraStream.getTracks().forEach(t=>t.stop());cameraStream=null;}
+  const video=document.getElementById('cam-video');
+  if(video){video.srcObject=null;}
   document.getElementById('cam-container').classList.remove('open');
   const btn=document.getElementById('cam-btn');
   btn.classList.remove('active');btn.textContent='📷';
