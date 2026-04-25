@@ -6,7 +6,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Regalbestückung · Odoo</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/zxing-js/0.21.1/zxing.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
   :root {
@@ -48,16 +48,15 @@
   /* Camera viewfinder */
   #cam-container{display:none;flex-direction:column;background:#000;flex-shrink:0;position:relative;overflow:hidden}
   #cam-container.open{display:flex}
-  #cam-video{width:100%;max-height:220px;object-fit:cover;display:block}
-  .cam-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
-  .cam-finder{width:200px;height:120px;border:2px solid var(--odoo-teal);border-radius:10px;box-shadow:0 0 0 9999px rgba(0,0,0,.45)}
-  .cam-finder-line{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:196px;height:2px;background:var(--odoo-teal);opacity:.7;animation:scanLine 1.6s ease-in-out infinite}
-  @keyframes scanLine{0%,100%{top:calc(50% - 58px)}50%{top:calc(50% + 58px)}}
-  .cam-hint{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:12px;color:rgba(255,255,255,.75);letter-spacing:.02em}
-  .cam-close{position:absolute;top:8px;right:10px;background:rgba(0,0,0,.5);border:none;color:#fff;font-size:13px;padding:4px 10px;border-radius:99px;cursor:pointer}
+  #cam-reader{width:100%;overflow:hidden}
+  #cam-reader video{width:100%!important;max-height:240px;object-fit:cover}
+  #cam-reader img{display:none!important}
+  #cam-reader canvas{display:none!important}
+  .cam-hint{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:12px;color:rgba(255,255,255,.85);letter-spacing:.02em;text-shadow:0 1px 3px rgba(0,0,0,.5);pointer-events:none}
+  .cam-close{position:absolute;top:8px;right:10px;background:rgba(0,0,0,.55);border:none;color:#fff;font-size:13px;padding:4px 10px;border-radius:99px;cursor:pointer;z-index:10}
 
   /* Beep flash */
-  .scan-flash{position:absolute;inset:0;background:rgba(0,160,157,.3);opacity:0;transition:opacity .1s;pointer-events:none}
+  .scan-flash{position:absolute;inset:0;background:rgba(0,160,157,.35);opacity:0;transition:opacity .1s;pointer-events:none}
   .scan-flash.flash{opacity:1}
 
   /* Preview */
@@ -178,7 +177,7 @@
     <text x="31" y="20" font-family="Arial,sans-serif" font-size="20" font-weight="800" fill="white" letter-spacing="-0.5">doo</text>
   </svg>
   <div class="header-title"><strong>Regalbestückung</strong></div>
-  <div id="db-count-header" style="font-size:11px;color:rgba(255,255,255,.6);white-space:nowrap">0 Produkte</div>
+  <div id="db-count-header" style="font-size:11px;color:rgba(255,255,255,.6);white-space:nowrap;text-align:right"></div>
 </header>
 
 <div id="sync-status" style="text-align:center;font-size:11px;padding:4px 16px;background:var(--surface2);border-bottom:1px solid var(--border);color:var(--muted);flex-shrink:0">Produkte werden geladen…</div>
@@ -208,11 +207,7 @@
 
     <!-- Kamera-Sucher -->
     <div id="cam-container">
-      <video id="cam-video" autoplay playsinline muted></video>
-      <div class="cam-overlay">
-        <div class="cam-finder"></div>
-        <div class="cam-finder-line"></div>
-      </div>
+      <div id="cam-reader"></div>
       <div class="scan-flash" id="scan-flash"></div>
       <div class="cam-hint">Barcode in den Rahmen halten</div>
       <button class="cam-close" onclick="stopCamera()">✕ Schließen</button>
@@ -292,8 +287,7 @@
 <script>
 // ══ STATE ══
 let products={}, pickItems=[], currentProduct=null;
-let cameraStream=null, codeReader=null, cameraActive=false;
-let lastScannedCode='', scanCooldown=false;
+let cameraActive=false, scanCooldown=false;
 
 // ══ PERSIST ══
 function save(){
@@ -362,78 +356,54 @@ async function toggleCamera(){
   await startCamera();
 }
 
+let html5QrScanner=null;
+
 async function startCamera(){
   const container=document.getElementById('cam-container');
   const btn=document.getElementById('cam-btn');
-  try {
-    // Kamera-Stream anfordern – Rückkamera bevorzugen
-    cameraStream = await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}
-    });
-    const video=document.getElementById('cam-video');
-    video.srcObject=cameraStream;
+  if(typeof Html5Qrcode==='undefined'){
+    toast('Scanner-Bibliothek nicht geladen – bitte Seite neu laden');return;
+  }
+  try{
     container.classList.add('open');
     btn.classList.add('active');
     btn.textContent='⏹';
     cameraActive=true;
-
-    // ZXing Barcode Reader
-    if(typeof ZXing !== 'undefined'){
-      const hints=new Map();
-      const formats=[
-        ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8,
-        ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39,
-        ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.DATA_MATRIX,
-        ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E
-      ];
-      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
-      codeReader=new ZXing.BrowserMultiFormatReader(hints);
-      codeReader.decodeFromVideoElementContinuously(video, (result, err)=>{
-        if(result && !scanCooldown){
-          onCameraScan(result.getText());
-        }
-      });
-    } else {
-      // Fallback: BarcodeDetector API (Chrome/Android nativ)
-      if('BarcodeDetector' in window){
-        startBarcodeDetector();
-      } else {
-        toast('ZXing nicht geladen – bitte Seite neu laden');
-      }
-    }
-  } catch(err){
+    html5QrScanner=new Html5Qrcode('cam-reader');
+    await html5QrScanner.start(
+      {facingMode:'environment'},
+      {fps:10, qrbox:{width:250,height:120}, aspectRatio:2.0,
+       formatsToSupport:[
+         Html5QrcodeSupportedFormats.EAN_13,
+         Html5QrcodeSupportedFormats.EAN_8,
+         Html5QrcodeSupportedFormats.CODE_128,
+         Html5QrcodeSupportedFormats.CODE_39,
+         Html5QrcodeSupportedFormats.UPC_A,
+         Html5QrcodeSupportedFormats.UPC_E,
+         Html5QrcodeSupportedFormats.QR_CODE,
+       ]
+      },
+      (decodedText)=>{
+        if(!scanCooldown) onCameraScan(decodedText);
+      },
+      ()=>{}
+    );
+  }catch(err){
+    container.classList.remove('open');
+    btn.classList.remove('active');btn.textContent='📷';
+    cameraActive=false;
     let msg='Kamera konnte nicht geöffnet werden.';
-    if(err.name==='NotAllowedError') msg='Kamerazugriff verweigert – bitte in den Einstellungen erlauben.';
-    else if(err.name==='NotFoundError') msg='Keine Kamera gefunden.';
+    if(err&&err.toString().includes('NotAllowed')) msg='Kamerazugriff verweigert – bitte in den Einstellungen erlauben.';
     toast(msg);
-    console.error(err);
   }
-}
-
-// Nativer BarcodeDetector (Safari 17+, Chrome)
-function startBarcodeDetector(){
-  const detector=new BarcodeDetector({formats:['ean_13','ean_8','code_128','code_39','qr_code','upc_a','upc_e']});
-  const video=document.getElementById('cam-video');
-  function detect(){
-    if(!cameraActive)return;
-    if(video.readyState===video.HAVE_ENOUGH_DATA && !scanCooldown){
-      detector.detect(video).then(codes=>{
-        if(codes.length>0 && !scanCooldown) onCameraScan(codes[0].rawValue);
-      }).catch(()=>{});
-    }
-    requestAnimationFrame(detect);
-  }
-  requestAnimationFrame(detect);
 }
 
 function onCameraScan(code){
-  if(!code || scanCooldown) return;
+  if(!code||scanCooldown)return;
   scanCooldown=true;
-  // Visuelles Feedback
   const flash=document.getElementById('scan-flash');
   flash.classList.add('flash');
   setTimeout(()=>flash.classList.remove('flash'),200);
-  // Ton (kurzer Beep)
   try{
     const ctx=new(window.AudioContext||window.webkitAudioContext)();
     const osc=ctx.createOscillator();const g=ctx.createGain();
@@ -443,24 +413,16 @@ function onCameraScan(code){
     osc.start();osc.stop(ctx.currentTime+.12);
     setTimeout(()=>ctx.close(),200);
   }catch(e){}
-  // Barcode übernehmen
   document.getElementById('barcode-input').value=code;
   lookupBarcode(code);
   stopCamera();
-  setTimeout(()=>{
-    document.getElementById('qty-input').select();
-    scanCooldown=false;
-  },400);
+  setTimeout(()=>{document.getElementById('qty-input').select();scanCooldown=false;},400);
 }
 
 function stopCamera(){
-  if(cameraStream){
-    cameraStream.getTracks().forEach(t=>t.stop());
-    cameraStream=null;
+  if(html5QrScanner){
+    html5QrScanner.stop().then(()=>{html5QrScanner.clear();html5QrScanner=null;}).catch(()=>{html5QrScanner=null;});
   }
-  if(codeReader){try{codeReader.reset()}catch(e){}codeReader=null}
-  const video=document.getElementById('cam-video');
-  video.srcObject=null;
   document.getElementById('cam-container').classList.remove('open');
   const btn=document.getElementById('cam-btn');
   btn.classList.remove('active');btn.textContent='📷';
@@ -558,7 +520,7 @@ function confirmClear(){if(!pickItems.length)return;if(confirm('Pickliste wirkli
 function renderProductTable(){
   const tbody=document.getElementById('prod-tbody');const empty=document.getElementById('prod-empty');const table=document.getElementById('prod-table');const count=document.getElementById('prod-count-label');
   const entries=Object.entries(products);count.textContent=entries.length;
-  document.getElementById('db-count-header').textContent=entries.length+' Produkte';
+  setProductCount(entries.length);
   tbody.innerHTML='';
   if(!entries.length){empty.style.display='block';table.style.display='none';return}
   empty.style.display='none';table.style.display='table';
@@ -588,14 +550,19 @@ function addManual(){
   document.getElementById('new-bc').value='';document.getElementById('new-name').value='';document.getElementById('new-unit').value='';toast('Produkt hinzugefügt');
 }
 document.getElementById('prod-tbody').addEventListener('click',e=>{const btn=e.target.closest('.del-prod');if(btn){const bc=btn.getAttribute('data-bc');delete products[bc];save();renderProductTable()}});
-function clearProducts(){if(!confirm('Alle Produkte löschen?'))return;products={};save();renderProductTable();document.getElementById('db-count-header').textContent='0 Produkte'}
+function clearProducts(){if(!confirm('Alle Produkte löschen?'))return;products={};save();renderProductTable();setProductCount(0)}
 function exportCSV(){
   const entries=Object.entries(products);if(!entries.length){toast('Keine Produkte');return}
   const csv='barcode;produktname;einheit\n'+entries.map(([bc,p])=>`${bc};${p.name};${p.unit||''}`).join('\n');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='hofladen-produkte.csv';a.click();
 }
 
-// ══ UTILS ══
+const APP_VERSION='v1.0';
+function setProductCount(n){
+  document.getElementById('db-count-header').innerHTML=
+    `<div>${n} Produkte</div><div style="color:rgba(255,255,255,.35);font-size:10px">${APP_VERSION}</div>`;
+}
+
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 let toastTimer;
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2400)}
@@ -634,7 +601,7 @@ async function loadCSVFromGitHub(){
       products=newProducts;
       save();
       renderProductTable();
-      document.getElementById('db-count-header').textContent=count+' Produkte';
+      setProductCount(count);
       status.textContent='✓ '+count+' Produkte geladen';
       status.style.color='var(--odoo-teal)';
     } else {
@@ -650,13 +617,13 @@ async function loadCSVFromGitHub(){
       status.textContent='⚠ Keine Produkte – CSV in GitHub hochladen';
       status.style.color='#e07060';
     }
-    document.getElementById('db-count-header').textContent=Object.keys(products).length+' Produkte';
+    setProductCount(Object.keys(products).length);
   }
 }
 
 // ══ INIT ══
 load();showTab('scan');renderScanList();updateBadge();
-document.getElementById('db-count-header').textContent=Object.keys(products).length+' Produkte';
+setProductCount(Object.keys(products).length);
 loadCSVFromGitHub();
 </script>
 </body>
