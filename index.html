@@ -198,6 +198,9 @@
              placeholder="Scannen oder eingeben …"
              autocomplete="off" autocorrect="off" spellcheck="false" inputmode="none"
              oninput="onBarcodeInput(this.value)" onkeydown="onBarcodeKey(event)">
+      <button class="cam-btn" id="kbd-btn" onclick="toggleKeyboard()" title="Manuell eingeben" style="background:var(--odoo-purple)">
+        🔢
+      </button>
       <button class="cam-btn" id="cam-btn" onclick="toggleCamera()" title="Kamera scannen">
         📷
       </button>
@@ -335,7 +338,25 @@ function showTab(tab){
   const bl=document.getElementById('bar-list');if(bl)bl.style.display=tab==='list'?'flex':'none';
 }
 
-// ══ KAMERA ══
+// ══ TASTATUR TOGGLE ══
+function toggleKeyboard(){
+  const input=document.getElementById('barcode-input');
+  const btn=document.getElementById('kbd-btn');
+  const isNumeric=input.inputMode==='numeric';
+  if(isNumeric){
+    input.inputMode='none';
+    btn.style.background='var(--odoo-purple)';
+    btn.style.opacity='1';
+    input.blur();
+  } else {
+    input.inputMode='numeric';
+    btn.style.background='#5a3952';
+    btn.style.opacity='1';
+    input.focus();
+  }
+}
+
+
 async function toggleCamera(){
   if(cameraActive){stopCamera();return}
   await startCamera();
@@ -583,7 +604,7 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
 
 // Fokus halten wenn nicht in Textfeldern
 document.addEventListener('click',e=>{
-  if(!['qty-input','csv-area','new-bc','new-name','new-unit','barcode-input'].includes(e.target.id)&&!e.target.classList.contains('cam-btn'))
+  if(!['qty-input','csv-area','new-bc','new-name','new-unit','barcode-input'].includes(e.target.id)&&!e.target.classList.contains('cam-btn')&&e.target.id!=='kbd-btn')
     if(document.getElementById('view-scan').style.display!=='none'&&!cameraActive)
       setTimeout(()=>document.getElementById('barcode-input').focus(),50);
 });
