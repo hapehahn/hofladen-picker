@@ -6,9 +6,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Regalbestückung · Odoo</title>
-<script>
-// Platzhalter – kein externes Script nötig, wir nutzen native Browser-APIs
-</script>
+<script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
   :root {
@@ -367,9 +365,10 @@ async function startCamera(){
   const container=document.getElementById('cam-container');
   const btn=document.getElementById('cam-btn');
   const video=document.getElementById('cam-video');
+
   try{
     cameraStream=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}
+      video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}
     });
     video.srcObject=cameraStream;
     await video.play();
@@ -377,39 +376,62 @@ async function startCamera(){
     btn.classList.add('active');
     btn.textContent='⏹';
     cameraActive=true;
-    startDetection(video);
   }catch(err){
     let msg='Kamera konnte nicht geöffnet werden.';
     if(err.name==='NotAllowedError'||err.toString().includes('NotAllowed'))
       msg='Kamerazugriff verweigert – bitte in den Einstellungen erlauben.';
     toast(msg);
-  }
-}
-
-function startDetection(video){
-  // Methode 1: native BarcodeDetector API (iOS 17+, Chrome Android)
-  if('BarcodeDetector' in window){
-    const detector=new BarcodeDetector({
-      formats:['ean_13','ean_8','code_128','code_39','upc_a','upc_e','qr_code','data_matrix']
-    });
-    function detect(){
-      if(!cameraActive)return;
-      if(video.readyState>=2&&!scanCooldown){
-        detector.detect(video).then(codes=>{
-          if(codes.length&&!scanCooldown) onCameraScan(codes[0].rawValue);
-        }).catch(()=>{});
-      }
-      scanAnimFrame=requestAnimationFrame(detect);
-    }
-    scanAnimFrame=requestAnimationFrame(detect);
     return;
   }
 
-  // Methode 2: Canvas + ImageData an BarcodeDetector (Fallback für ältere iOS)
-  // iOS 16 hat BarcodeDetector nicht, aber wir können es über createImageBitmap versuchen
-  // Methode 3: Manuelle Eingabe als letzter Ausweg – Hinweis anzeigen
-  const hint=document.getElementById('cam-container').querySelector('.cam-hint');
-  if(hint) hint.textContent='Barcode-Erkennung nicht verfügbar – bitte manuell eingeben (🔢)';
+  // Methode 1: native BarcodeDetector (iOS 17.4+, Chrome Android)
+  if('BarcodeDetector' in window){
+    try{
+      const detector=new BarcodeDetector({
+        formats:['ean_13','ean_8','code_128','code_39','upc_a','upc_e','qr_code']
+      });
+      function detectNative(){
+        if(!cameraActive)return;
+        if(video.readyState>=2&&!scanCooldown){
+          detector.detect(video).then(codes=>{
+            if(codes.length&&!scanCooldown)onCameraScan(codes[0].rawValue);
+          }).catch(()=>{});
+        }
+        scanAnimFrame=requestAnimationFrame(detectNative);
+      }
+      scanAnimFrame=requestAnimationFrame(detectNative);
+      return;
+    }catch(e){}
+  }
+
+  // Methode 2: Quagga2 (iOS Safari Fallback)
+  if(typeof Quagga!=='undefined'){
+    Quagga.init({
+      inputStream:{
+        type:'LiveStream',
+        target:video,
+        constraints:{facingMode:'environment'},
+        area:{top:'15%',right:'5%',left:'5%',bottom:'15%'}
+      },
+      decoder:{
+        readers:['ean_reader','ean_8_reader','code_128_reader','code_39_reader','upc_reader','upc_e_reader']
+      },
+      locate:true,
+      numOfWorkers:0,
+      frequency:10
+    },(err)=>{
+      if(err){toast('Scanner-Fehler: '+err);stopCamera();return;}
+      Quagga.start();
+      Quagga.onDetected((data)=>{
+        const code=data&&data.result&&data.result.codeResult&&data.result.codeResult.code;
+        if(code&&!scanCooldown)onCameraScan(code);
+      });
+    });
+    return;
+  }
+
+  // Kein Scanner verfügbar
+  container.querySelector('.cam-hint').textContent='Barcode-Erkennung nicht verfügbar – bitte 🔢 nutzen';
 }
 
 function onCameraScan(code){
@@ -435,6 +457,7 @@ function onCameraScan(code){
 
 function stopCamera(){
   if(scanAnimFrame){cancelAnimationFrame(scanAnimFrame);scanAnimFrame=null;}
+  if(typeof Quagga!=='undefined'){try{Quagga.stop();}catch(e){}}
   if(cameraStream){cameraStream.getTracks().forEach(t=>t.stop());cameraStream=null;}
   const video=document.getElementById('cam-video');
   if(video){video.srcObject=null;}
@@ -443,6 +466,7 @@ function stopCamera(){
   btn.classList.remove('active');btn.textContent='📷';
   cameraActive=false;
 }
+
 
 // ══ BARCODE EINGABE ══
 function onBarcodeInput(val){lookupBarcode(val.trim())}
