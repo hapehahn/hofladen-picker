@@ -181,6 +181,8 @@
   <div id="db-count-header" style="font-size:11px;color:rgba(255,255,255,.6);white-space:nowrap">0 Produkte</div>
 </header>
 
+<div id="sync-status" style="text-align:center;font-size:11px;padding:4px 16px;background:var(--surface2);border-bottom:1px solid var(--border);color:var(--muted);flex-shrink:0">Produkte werden geladen…</div>
+
 <div class="tabs">
   <div class="tab active" id="tab-scan" onclick="showTab('scan')">🔍 Scannen</div>
   <div class="tab" id="tab-list" onclick="showTab('list')">📋 Pickliste<span id="list-badge"></span></div>
@@ -586,9 +588,55 @@ document.addEventListener('click',e=>{
       setTimeout(()=>document.getElementById('barcode-input').focus(),50);
 });
 
+// ══ CSV AUTO-LOAD von GitHub ══
+const CSV_URL='produkte.csv'; // liegt im selben Repository wie index.html
+
+async function loadCSVFromGitHub(){
+  const status=document.getElementById('sync-status');
+  try{
+    status.textContent='⟳ Produkte werden geladen…';
+    const res=await fetch(CSV_URL+'?t='+Date.now()); // Cache umgehen
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const text=await res.text();
+    let count=0;
+    const newProducts={};
+    text.split(/\r?\n/).filter(l=>l.trim()).forEach((line,i)=>{
+      const parts=line.split(';');if(parts.length<2)return;
+      const bc=parts[0].trim().replace(/^["']|["']$/g,'');
+      const name=parts[1].trim().replace(/^["']|["']$/g,'');
+      const unit=(parts[2]||'').trim().replace(/^["']|["']$/g,'');
+      if(!bc||!name)return;
+      if(i===0&&(bc.toLowerCase().includes('barcode')||bc.toLowerCase().includes('code')))return;
+      newProducts[bc]={name,unit};count++;
+    });
+    if(count>0){
+      products=newProducts;
+      save();
+      renderProductTable();
+      document.getElementById('db-count-header').textContent=count+' Produkte';
+      status.textContent='✓ '+count+' Produkte geladen';
+      status.style.color='var(--odoo-teal)';
+    } else {
+      throw new Error('Keine Produkte in CSV');
+    }
+  }catch(e){
+    // Kein Netz oder Datei nicht gefunden → lokale Daten verwenden
+    const n=Object.keys(products).length;
+    if(n>0){
+      status.textContent='Offline · '+n+' Produkte (lokal)';
+      status.style.color='var(--muted)';
+    } else {
+      status.textContent='⚠ Keine Produkte – CSV in GitHub hochladen';
+      status.style.color='#e07060';
+    }
+    document.getElementById('db-count-header').textContent=Object.keys(products).length+' Produkte';
+  }
+}
+
 // ══ INIT ══
 load();showTab('scan');renderScanList();updateBadge();
 document.getElementById('db-count-header').textContent=Object.keys(products).length+' Produkte';
+loadCSVFromGitHub();
 </script>
 </body>
 </html>
