@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Regalbestückung · Odoo</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/zxing-js/0.21.1/zxing.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+  :root {
+    --bg:#f5f4f8; --surface:#ffffff; --surface2:#f0eef5; --border:#ddd9e8; --border2:#c8c2db;
+    --odoo-purple:#714B67; --odoo-teal:#00A09D;
+    --text:#2c2438; --text2:#6b5f7a; --muted:#a098b0;
+    --danger:#c0392b;
+    --radius:8px; --shadow:0 1px 4px rgba(113,75,103,.08),0 0 0 1px rgba(113,75,103,.06);
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:15px;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
+  #app{display:flex;flex-direction:column;height:100dvh;max-width:540px;margin:0 auto;background:var(--bg)}
+
+  /* Header */
+  header{display:flex;align-items:center;padding:0 16px;height:52px;background:var(--odoo-purple);gap:12px;flex-shrink:0}
+  .header-title{flex:1;font-size:13px;font-weight:500;color:rgba(255,255,255,.75)}
+  .header-title strong{color:#fff;font-weight:600}
+
+  /* Tabs */
+  .tabs{display:flex;background:var(--surface);border-bottom:2px solid var(--border);flex-shrink:0}
+  .tab{flex:1;padding:11px 0;text-align:center;font-size:12px;font-weight:500;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:color .15s,border-color .15s;letter-spacing:.02em}
+  .tab.active{color:var(--odoo-purple);border-bottom-color:var(--odoo-purple)}
+
+  /* Scan View */
+  #view-scan{display:flex;flex-direction:column;flex:1;overflow:hidden}
+  .scan-input-area{padding:14px 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;box-shadow:0 2px 8px rgba(113,75,103,.05)}
+  .field-label{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
+
+  .scan-row{display:flex;gap:8px;align-items:stretch}
+  .scan-field{flex:1;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--radius);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:15px;padding:9px 12px;outline:none;transition:border-color .15s,box-shadow .15s}
+  .scan-field:focus{border-color:var(--odoo-purple);box-shadow:0 0 0 3px rgba(113,75,103,.12)}
+  .scan-field::placeholder{color:var(--muted)}
+
+  /* Camera button */
+  .cam-btn{width:46px;background:var(--odoo-teal);border:none;border-radius:var(--radius);color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:opacity .15s;flex-shrink:0}
+  .cam-btn:hover{opacity:.85}
+  .cam-btn.active{background:#c0392b}
+
+  /* Camera viewfinder */
+  #cam-container{display:none;flex-direction:column;background:#000;flex-shrink:0;position:relative;overflow:hidden}
+  #cam-container.open{display:flex}
+  #cam-video{width:100%;max-height:220px;object-fit:cover;display:block}
+  .cam-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+  .cam-finder{width:200px;height:120px;border:2px solid var(--odoo-teal);border-radius:10px;box-shadow:0 0 0 9999px rgba(0,0,0,.45)}
+  .cam-finder-line{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:196px;height:2px;background:var(--odoo-teal);opacity:.7;animation:scanLine 1.6s ease-in-out infinite}
+  @keyframes scanLine{0%,100%{top:calc(50% - 58px)}50%{top:calc(50% + 58px)}}
+  .cam-hint{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:12px;color:rgba(255,255,255,.75);letter-spacing:.02em}
+  .cam-close{position:absolute;top:8px;right:10px;background:rgba(0,0,0,.5);border:none;color:#fff;font-size:13px;padding:4px 10px;border-radius:99px;cursor:pointer}
+
+  /* Beep flash */
+  .scan-flash{position:absolute;inset:0;background:rgba(0,160,157,.3);opacity:0;transition:opacity .1s;pointer-events:none}
+  .scan-flash.flash{opacity:1}
+
+  /* Preview */
+  .product-preview{margin-top:10px;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius);padding:10px 14px;min-height:48px;display:flex;align-items:center;gap:10px;transition:border-color .15s,background .15s}
+  .product-preview.found{background:#edf8f7;border-color:var(--odoo-teal)}
+  .product-preview.notfound{background:#fdf3f2;border-color:#e07060}
+  .product-preview .pname{font-size:15px;font-weight:600;color:var(--text);flex:1}
+  .product-preview .pcode{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);white-space:nowrap}
+  .product-preview .hint{color:var(--muted);font-size:13px}
+  .status-dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;color:white}
+  .dot-ok{background:var(--odoo-teal)}.dot-err{background:#e07060}
+
+  /* Qty */
+  .qty-row{display:flex;gap:8px;margin-top:10px;align-items:center}
+  .qty-btn{width:44px;height:44px;background:var(--surface2);border:1.5px solid var(--border2);border-radius:var(--radius);color:var(--text);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .1s;flex-shrink:0;font-weight:500}
+  .qty-btn:active{background:var(--border)}
+  .qty-field{flex:1;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--radius);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:500;padding:7px 12px;text-align:center;outline:none;transition:border-color .15s,box-shadow .15s}
+  .qty-field:focus{border-color:var(--odoo-teal);box-shadow:0 0 0 3px rgba(0,160,157,.12)}
+  .qty-label{font-size:13px;color:var(--muted);white-space:nowrap}
+
+  .add-btn{width:100%;margin-top:10px;padding:12px;background:var(--odoo-purple);color:#fff;border:none;border-radius:var(--radius);font-family:'IBM Plex Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .15s,transform .1s}
+  .add-btn:active{opacity:.88;transform:scale(.99)}
+  .add-btn:disabled{opacity:.3;cursor:not-allowed}
+
+  /* List area */
+  .list-area{flex:1;overflow-y:auto;padding:12px 16px 80px}
+  .list-empty{text-align:center;color:var(--muted);font-size:13px;padding:36px 0}
+  .list-section-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+  .item-card{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;box-shadow:var(--shadow);animation:slideIn .16s ease}
+  @keyframes slideIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+  .item-num{font-size:11px;color:var(--muted);min-width:20px;text-align:right;font-family:'IBM Plex Mono',monospace}
+  .item-info{flex:1;min-width:0}
+  .item-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+  .item-barcode{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);margin-top:1px}
+  .item-qty{background:var(--odoo-purple);color:#fff;font-size:14px;font-weight:600;min-width:38px;height:36px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;font-family:'IBM Plex Mono',monospace}
+  .item-qty:hover{background:#5a3952}
+  .item-del{background:transparent;border:1px solid var(--border);color:var(--muted);font-size:14px;width:30px;height:30px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color .1s,border-color .1s,background .1s;flex-shrink:0}
+  .item-del:hover{color:var(--danger);border-color:var(--danger);background:#fdf3f2}
+
+  /* Picklist View */
+  #view-list{display:none;flex-direction:column;flex:1;overflow:hidden}
+  .picklist-header{padding:14px 16px 12px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:baseline;gap:12px;flex-shrink:0;box-shadow:0 2px 8px rgba(113,75,103,.05)}
+  .picklist-title{font-size:17px;font-weight:700;color:var(--text);flex:1}
+  .picklist-meta{font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+  .picklist-scroll{flex:1;overflow-y:auto;padding:0 16px 80px}
+  .progress-bar-wrap{height:3px;background:var(--border);overflow:hidden;flex-shrink:0}
+  .progress-bar-fill{height:100%;background:var(--odoo-teal);transition:width .3s ease}
+  .pick-item{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--border)}
+  .pick-check{width:26px;height:26px;border:2px solid var(--border2);border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s;flex-shrink:0;background:var(--surface)}
+  .pick-check.done{background:var(--odoo-teal);border-color:var(--odoo-teal)}
+  .pick-check.done::after{content:'✓';font-size:14px;color:white;font-weight:700}
+  .pick-info{flex:1;min-width:0}
+  .pick-name{font-size:15px;font-weight:600;transition:opacity .2s,color .2s;color:var(--text)}
+  .pick-name.done{opacity:.4;text-decoration:line-through;color:var(--muted)}
+  .pick-code{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);margin-top:2px}
+  .pick-qty-badge{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:var(--odoo-purple);flex-shrink:0;min-width:36px;text-align:right;line-height:1}
+  .pick-unit{font-size:10px;color:var(--muted);text-align:right;margin-top:2px}
+
+  /* Import View */
+  #view-import{display:none;flex-direction:column;flex:1;overflow:hidden}
+  .import-body{flex:1;overflow-y:auto;padding:16px}
+  .import-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;box-shadow:var(--shadow)}
+  .import-section-title{font-size:13px;font-weight:700;color:var(--odoo-purple);margin-bottom:10px}
+  .import-hint{font-size:12px;color:var(--text2);margin-bottom:8px;line-height:1.5}
+  code{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--odoo-purple)}
+  textarea.csv-area{width:100%;height:130px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--radius);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:12px;padding:10px 12px;resize:vertical;outline:none;transition:border-color .15s}
+  textarea.csv-area:focus{border-color:var(--odoo-purple)}
+  .import-btn{width:100%;padding:10px;background:var(--odoo-purple);border:none;color:#fff;border-radius:var(--radius);font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:opacity .15s;margin-top:8px}
+  .import-btn:hover{opacity:.9}
+  .import-status{margin-top:7px;font-size:12px;color:var(--muted);min-height:16px}
+  .import-status.ok{color:var(--odoo-teal)}.import-status.err{color:var(--danger)}
+  .field-row{display:flex;gap:8px}
+  .txt-field{flex:1;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--radius);color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:14px;padding:9px 11px;outline:none;transition:border-color .15s}
+  .txt-field:focus{border-color:var(--odoo-purple)}
+  .product-table{width:100%;border-collapse:collapse;font-size:12px}
+  .product-table th{text-align:left;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border);padding:6px 4px;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+  .product-table td{padding:8px 4px;border-bottom:1px solid var(--border);vertical-align:middle;font-size:13px}
+  .product-table tr:last-child td{border-bottom:none}
+  .del-prod{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:3px 7px;border-radius:4px;transition:color .1s,background .1s}
+  .del-prod:hover{color:var(--danger);background:#fdf3f2}
+  .btn-row{display:flex;gap:8px;margin-top:4px}
+  .btn-sm{flex:1;padding:9px;border-radius:var(--radius);font-family:'IBM Plex Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;border:1.5px solid var(--border2);background:var(--surface);color:var(--text);transition:background .15s}
+  .btn-sm:hover{background:var(--surface2)}
+  .btn-sm.danger{border-color:#e07060;color:var(--danger)}
+  .btn-sm.danger:hover{background:#fdf3f2}
+
+  /* Bottom bar */
+  .bottom-bar{position:fixed;bottom:0;left:0;right:0;max-width:540px;margin:0 auto;padding:10px 16px 14px;background:var(--surface);border-top:1px solid var(--border);display:flex;gap:8px;box-shadow:0 -2px 8px rgba(113,75,103,.08)}
+  .bar-btn{flex:1;padding:10px;border-radius:var(--radius);font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:1.5px solid var(--border2);background:var(--surface);color:var(--text);transition:background .15s}
+  .bar-btn:hover{background:var(--surface2)}
+  .bar-btn.primary{background:var(--odoo-purple);color:#fff;border-color:var(--odoo-purple)}
+  .bar-btn.primary:hover{opacity:.9}
+  .bar-btn.danger{border-color:#e07060;color:var(--danger)}
+  .bar-btn.danger:hover{background:#fdf3f2}
+
+  /* Toast */
+  #toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--text);color:#fff;font-size:13px;font-weight:500;padding:8px 18px;border-radius:99px;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;white-space:nowrap;z-index:999;box-shadow:0 4px 16px rgba(44,36,56,.25)}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  @media print{
+    header,.tabs,.scan-input-area,#view-scan,#view-import,.bottom-bar,#toast,.progress-bar-wrap{display:none!important}
+    #view-list{display:block!important}
+    body{background:white;color:black}
+    .picklist-header{box-shadow:none;border-bottom:2px solid #714B67}
+    .picklist-title{color:#714B67}
+    .pick-item{border-bottom:1px solid #ddd}
+    .pick-qty-badge{color:#714B67}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <svg width="80" height="28" viewBox="0 0 80 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="14" cy="14" r="13" fill="white"/>
+    <circle cx="14" cy="14" r="7" fill="#714B67"/>
+    <text x="31" y="20" font-family="Arial,sans-serif" font-size="20" font-weight="800" fill="white" letter-spacing="-0.5">doo</text>
+  </svg>
+  <div class="header-title"><strong>Regalbestückung</strong></div>
+  <div id="db-count-header" style="font-size:11px;color:rgba(255,255,255,.6);white-space:nowrap">0 Produkte</div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" id="tab-scan" onclick="showTab('scan')">🔍 Scannen</div>
+  <div class="tab" id="tab-list" onclick="showTab('list')">📋 Pickliste<span id="list-badge"></span></div>
+  <div class="tab" id="tab-import" onclick="showTab('import')">⚙ Produkte</div>
+</div>
+
+<!-- SCAN VIEW -->
+<div id="view-scan">
+  <div class="scan-input-area">
+    <div class="field-label">Barcode</div>
+    <div class="scan-row">
+      <input id="barcode-input" class="scan-field" type="text"
+             placeholder="Scannen oder eingeben …"
+             autocomplete="off" autocorrect="off" spellcheck="false" inputmode="none"
+             oninput="onBarcodeInput(this.value)" onkeydown="onBarcodeKey(event)">
+      <button class="cam-btn" id="cam-btn" onclick="toggleCamera()" title="Kamera scannen">
+        📷
+      </button>
+    </div>
+
+    <!-- Kamera-Sucher -->
+    <div id="cam-container">
+      <video id="cam-video" autoplay playsinline muted></video>
+      <div class="cam-overlay">
+        <div class="cam-finder"></div>
+        <div class="cam-finder-line"></div>
+      </div>
+      <div class="scan-flash" id="scan-flash"></div>
+      <div class="cam-hint">Barcode in den Rahmen halten</div>
+      <button class="cam-close" onclick="stopCamera()">✕ Schließen</button>
+    </div>
+
+    <div class="product-preview" id="preview">
+      <span class="hint">Barcode scannen → Produkt erscheint hier</span>
+    </div>
+    <div class="qty-row">
+      <button class="qty-btn" onclick="adjustQty(-1)">−</button>
+      <input id="qty-input" class="qty-field" type="number" value="1" min="1" max="9999"
+             inputmode="decimal" onkeydown="onQtyKey(event)">
+      <span class="qty-label">Stk.</span>
+      <button class="qty-btn" onclick="adjustQty(+1)">+</button>
+    </div>
+    <button class="add-btn" id="add-btn" onclick="addItem()" disabled>+ Zur Pickliste hinzufügen</button>
+  </div>
+  <div class="list-area" id="scan-list-area">
+    <div class="list-empty" id="scan-empty">Noch keine Artikel — Barcode scannen und Menge eingeben.</div>
+  </div>
+</div>
+
+<!-- PICKLIST VIEW -->
+<div id="view-list">
+  <div class="picklist-header">
+    <div class="picklist-title">Pickliste</div>
+    <div class="picklist-meta" id="pick-meta">–</div>
+  </div>
+  <div class="progress-bar-wrap" id="prog-wrap" style="display:none">
+    <div class="progress-bar-fill" id="prog-fill" style="width:0%"></div>
+  </div>
+  <div class="picklist-scroll" id="pick-scroll"></div>
+  <div class="bottom-bar" id="bar-list">
+    <button class="bar-btn" onclick="window.print()">🖨 Drucken</button>
+    <button class="bar-btn danger" onclick="confirmClear()">🗑 Leeren</button>
+    <button class="bar-btn primary" onclick="showTab('scan')">← Zurück</button>
+  </div>
+</div>
+
+<!-- IMPORT VIEW -->
+<div id="view-import">
+  <div class="import-body">
+    <div class="import-section">
+      <div class="import-section-title">📥 CSV aus Odoo importieren</div>
+      <div class="import-hint">Format: <code>barcode;produktname;einheit</code> — eine Zeile pro Produkt.<br>In Odoo: Lager → Konfiguration → Produktbarcodes → Export.<br>Die Einheit (z. B. <code>Stk.</code>, <code>kg</code>, <code>L</code>) ist optional.</div>
+      <textarea class="csv-area" id="csv-area" placeholder="4000539014923;Apfelsaft Bio 1L;L&#10;4005808231454;Erdbeermarmelade 450g;Stk.&#10;…"></textarea>
+      <div class="import-status" id="import-status"></div>
+      <button class="import-btn" onclick="importCSV()">✓ Importieren</button>
+    </div>
+    <div class="import-section">
+      <div class="import-section-title">✏️ Produkt manuell hinzufügen</div>
+      <div class="field-row">
+        <input class="txt-field" id="new-bc" placeholder="Barcode" autocomplete="off" style="font-family:'IBM Plex Mono',monospace;font-size:13px;max-width:150px">
+        <input class="txt-field" id="new-name" placeholder="Produktname" autocomplete="off">
+        <input class="txt-field" id="new-unit" placeholder="Einheit" autocomplete="off" style="max-width:80px">
+      </div>
+      <button class="import-btn" style="margin-top:8px" onclick="addManual()">+ Hinzufügen</button>
+    </div>
+    <div class="import-section">
+      <div class="import-section-title">📦 Produktdatenbank (<span id="prod-count-label">0</span>)</div>
+      <div id="prod-empty" style="font-size:13px;color:var(--muted);padding:12px 0;text-align:center">Noch keine Produkte importiert.</div>
+      <table class="product-table" id="prod-table" style="display:none">
+        <thead><tr><th>Barcode</th><th>Produktname</th><th>Einheit</th><th></th></tr></thead>
+        <tbody id="prod-tbody"></tbody>
+      </table>
+      <div class="btn-row" style="margin-top:12px">
+        <button class="btn-sm" onclick="exportCSV()">⬇ Exportieren</button>
+        <button class="btn-sm danger" onclick="clearProducts()">🗑 Alle löschen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- #app -->
+<div id="toast"></div>
+
+<script>
+// ══ STATE ══
+let products={}, pickItems=[], currentProduct=null;
+let cameraStream=null, codeReader=null, cameraActive=false;
+let lastScannedCode='', scanCooldown=false;
+
+// ══ PERSIST ══
+function save(){
+  try{
+    const pd=JSON.stringify(products);const pi=JSON.stringify(pickItems);
+    localStorage.setItem('hfl_products',pd);
+    localStorage.setItem('hfl_pick',pi);
+    // Cookie als Backup (180 Tage, SameSite=Lax)
+    const exp=new Date();exp.setDate(exp.getDate()+180);
+    document.cookie='hfl_products='+encodeURIComponent(pd)+';expires='+exp.toUTCString()+';path=/;SameSite=Lax';
+    document.cookie='hfl_pick='+encodeURIComponent(pi)+';expires='+exp.toUTCString()+';path=/;SameSite=Lax';
+  }catch(e){}
+}
+function getCookie(name){
+  const m=document.cookie.match('(?:^|; )'+name+'=([^;]*)');
+  return m?decodeURIComponent(m[1]):null;
+}
+function load(){
+  try{
+    // Erst localStorage, dann Cookie als Fallback
+    let p=localStorage.getItem('hfl_products')||getCookie('hfl_products');
+    let pi=localStorage.getItem('hfl_pick')||getCookie('hfl_pick');
+    if(p)products=JSON.parse(p);
+    if(pi)pickItems=JSON.parse(pi);
+    // Auch alten Key migrieren falls vorhanden
+    if(!p){const old=localStorage.getItem('hf3_products');if(old){products=JSON.parse(old);save();}}
+  }catch(e){}
+}
+
+// ══ TABS ══
+function showTab(tab){
+  ['scan','list','import'].forEach(t=>{
+    document.getElementById('view-'+t).style.display='none';
+    document.getElementById('tab-'+t)?.classList.remove('active');
+  });
+  document.getElementById('view-'+tab).style.display='flex';
+  document.getElementById('tab-'+tab)?.classList.add('active');
+  if(tab==='scan'){setTimeout(()=>document.getElementById('barcode-input').focus(),80);renderScanList()}
+  if(tab==='list')renderPicklist();
+  if(tab==='import')renderProductTable();
+  if(tab!=='scan')stopCamera();
+  const bl=document.getElementById('bar-list');if(bl)bl.style.display=tab==='list'?'flex':'none';
+}
+
+// ══ KAMERA ══
+async function toggleCamera(){
+  if(cameraActive){stopCamera();return}
+  await startCamera();
+}
+
+async function startCamera(){
+  const container=document.getElementById('cam-container');
+  const btn=document.getElementById('cam-btn');
+  try {
+    // Kamera-Stream anfordern – Rückkamera bevorzugen
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}
+    });
+    const video=document.getElementById('cam-video');
+    video.srcObject=cameraStream;
+    container.classList.add('open');
+    btn.classList.add('active');
+    btn.textContent='⏹';
+    cameraActive=true;
+
+    // ZXing Barcode Reader
+    if(typeof ZXing !== 'undefined'){
+      const hints=new Map();
+      const formats=[
+        ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8,
+        ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39,
+        ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.DATA_MATRIX,
+        ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E
+      ];
+      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+      codeReader=new ZXing.BrowserMultiFormatReader(hints);
+      codeReader.decodeFromVideoElementContinuously(video, (result, err)=>{
+        if(result && !scanCooldown){
+          onCameraScan(result.getText());
+        }
+      });
+    } else {
+      // Fallback: BarcodeDetector API (Chrome/Android nativ)
+      if('BarcodeDetector' in window){
+        startBarcodeDetector();
+      } else {
+        toast('ZXing nicht geladen – bitte Seite neu laden');
+      }
+    }
+  } catch(err){
+    let msg='Kamera konnte nicht geöffnet werden.';
+    if(err.name==='NotAllowedError') msg='Kamerazugriff verweigert – bitte in den Einstellungen erlauben.';
+    else if(err.name==='NotFoundError') msg='Keine Kamera gefunden.';
+    toast(msg);
+    console.error(err);
+  }
+}
+
+// Nativer BarcodeDetector (Safari 17+, Chrome)
+function startBarcodeDetector(){
+  const detector=new BarcodeDetector({formats:['ean_13','ean_8','code_128','code_39','qr_code','upc_a','upc_e']});
+  const video=document.getElementById('cam-video');
+  function detect(){
+    if(!cameraActive)return;
+    if(video.readyState===video.HAVE_ENOUGH_DATA && !scanCooldown){
+      detector.detect(video).then(codes=>{
+        if(codes.length>0 && !scanCooldown) onCameraScan(codes[0].rawValue);
+      }).catch(()=>{});
+    }
+    requestAnimationFrame(detect);
+  }
+  requestAnimationFrame(detect);
+}
+
+function onCameraScan(code){
+  if(!code || scanCooldown) return;
+  scanCooldown=true;
+  // Visuelles Feedback
+  const flash=document.getElementById('scan-flash');
+  flash.classList.add('flash');
+  setTimeout(()=>flash.classList.remove('flash'),200);
+  // Ton (kurzer Beep)
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const osc=ctx.createOscillator();const g=ctx.createGain();
+    osc.connect(g);g.connect(ctx.destination);
+    osc.frequency.value=1800;g.gain.setValueAtTime(.3,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.12);
+    osc.start();osc.stop(ctx.currentTime+.12);
+    setTimeout(()=>ctx.close(),200);
+  }catch(e){}
+  // Barcode übernehmen
+  document.getElementById('barcode-input').value=code;
+  lookupBarcode(code);
+  stopCamera();
+  setTimeout(()=>{
+    document.getElementById('qty-input').select();
+    scanCooldown=false;
+  },400);
+}
+
+function stopCamera(){
+  if(cameraStream){
+    cameraStream.getTracks().forEach(t=>t.stop());
+    cameraStream=null;
+  }
+  if(codeReader){try{codeReader.reset()}catch(e){}codeReader=null}
+  const video=document.getElementById('cam-video');
+  video.srcObject=null;
+  document.getElementById('cam-container').classList.remove('open');
+  const btn=document.getElementById('cam-btn');
+  btn.classList.remove('active');btn.textContent='📷';
+  cameraActive=false;
+}
+
+// ══ BARCODE EINGABE ══
+function onBarcodeInput(val){lookupBarcode(val.trim())}
+function onBarcodeKey(e){
+  if(e.key==='Enter'){
+    const v=document.getElementById('barcode-input').value.trim();
+    if(v){lookupBarcode(v);setTimeout(()=>document.getElementById('qty-input').select(),80)}
+    e.preventDefault();
+  }
+}
+
+function lookupBarcode(code){
+  const p=document.getElementById('preview');
+  if(!code){
+    currentProduct=null;p.className='product-preview';
+    p.innerHTML='<span class="hint">Barcode scannen → Produkt erscheint hier</span>';
+    document.getElementById('add-btn').disabled=true;return;
+  }
+  const prod=products[code];
+  if(prod){
+    currentProduct={barcode:code,name:prod.name,unit:prod.unit||''};p.className='product-preview found';
+    const unitBadge=prod.unit?`<span style="background:var(--odoo-teal);color:#fff;font-size:11px;font-weight:600;padding:2px 7px;border-radius:99px;white-space:nowrap">${esc(prod.unit)}</span>`:'';
+    p.innerHTML=`<div class="status-dot dot-ok">✓</div><span class="pname">${esc(prod.name)}</span>${unitBadge}<span class="pcode">${esc(code)}</span>`;
+  } else {
+    currentProduct={barcode:code,name:'(Unbekanntes Produkt)',unit:''};p.className='product-preview notfound';
+    p.innerHTML=`<div class="status-dot dot-err">?</div><span class="pname" style="color:var(--muted);font-style:italic">(Unbekannt)</span><span class="pcode">${esc(code)}</span>`;
+  }
+  document.getElementById('add-btn').disabled=false;
+}
+
+function onQtyKey(e){if(e.key==='Enter'){addItem();e.preventDefault()}}
+function adjustQty(d){const f=document.getElementById('qty-input');f.value=Math.max(1,(parseInt(f.value)||1)+d)}
+
+// ══ ARTIKEL HINZUFÜGEN ══
+function addItem(){
+  if(!currentProduct)return;
+  const qty=Math.max(1,parseInt(document.getElementById('qty-input').value)||1);
+  const ex=pickItems.find(i=>i.barcode===currentProduct.barcode);
+  if(ex){ex.qty+=qty;toast(`+${qty} zu „${currentProduct.name}"`)}
+  else{pickItems.push({barcode:currentProduct.barcode,name:currentProduct.name,unit:currentProduct.unit||'',qty,done:false});toast(`„${currentProduct.name}" hinzugefügt`)}
+  save();updateBadge();renderScanList();
+  document.getElementById('barcode-input').value='';
+  document.getElementById('qty-input').value='1';
+  currentProduct=null;
+  const p=document.getElementById('preview');p.className='product-preview';
+  p.innerHTML='<span class="hint">Barcode scannen → Produkt erscheint hier</span>';
+  document.getElementById('add-btn').disabled=true;
+  document.getElementById('barcode-input').focus();
+}
+
+// ══ SCAN-LISTE ══
+function renderScanList(){
+  const area=document.getElementById('scan-list-area');const empty=document.getElementById('scan-empty');
+  area.querySelectorAll('.item-card,.list-section-label').forEach(el=>el.remove());
+  if(!pickItems.length){empty.style.display='block';return}
+  empty.style.display='none';
+  const lbl=document.createElement('div');lbl.className='list-section-label';
+  lbl.textContent=`${pickItems.length} Artikel erfasst`;area.appendChild(lbl);
+  [...pickItems].reverse().forEach((item,ri)=>{
+    const idx=pickItems.length-1-ri;
+    const card=document.createElement('div');card.className='item-card';
+    const unitLabel=item.unit?`, ${esc(item.unit)}`:'';
+    card.innerHTML=`<span class="item-num">${idx+1}</span><div class="item-info"><div class="item-name">${esc(item.name)}${unitLabel}</div><div class="item-barcode">${esc(item.barcode)}</div></div><div class="item-qty" onclick="editQty(${idx})">${item.qty}</div><button class="item-del" onclick="removeItem(${idx})">✕</button>`;
+    area.appendChild(card);
+  });updateBadge();
+}
+function removeItem(idx){pickItems.splice(idx,1);save();renderScanList()}
+function editQty(idx){const item=pickItems[idx];const v=prompt(`Menge für „${item.name}":`,item.qty);if(v===null)return;const n=parseInt(v);if(n>0){item.qty=n;save();renderScanList();renderPicklist()}}
+
+// ══ PICKLISTE ══
+function renderPicklist(){
+  const scroll=document.getElementById('pick-scroll');const meta=document.getElementById('pick-meta');
+  const prog=document.getElementById('prog-wrap');const fill=document.getElementById('prog-fill');
+  scroll.innerHTML='';
+  if(!pickItems.length){scroll.innerHTML='<div style="text-align:center;color:var(--muted);padding:40px 0;font-size:13px">Pickliste ist leer.</div>';meta.textContent='–';prog.style.display='none';return}
+  const total=pickItems.reduce((s,i)=>s+i.qty,0);const done=pickItems.filter(i=>i.done).length;
+  meta.textContent=`${done}/${pickItems.length} erledigt · ${total} Stk.`;
+  prog.style.display='block';fill.style.width=(done/pickItems.length*100).toFixed(1)+'%';
+  pickItems.forEach((item,idx)=>{
+    const row=document.createElement('div');row.className='pick-item';
+    row.innerHTML=`<div class="pick-check ${item.done?'done':''}" onclick="toggleDone(${idx})"></div><div class="pick-info"><div class="pick-name ${item.done?'done':''}">${esc(item.name)}</div><div class="pick-code">${esc(item.barcode)}</div></div><div><div class="pick-qty-badge">${item.qty}</div><div class="pick-unit">${esc(item.unit||'Stk.')}</div></div>`;
+    scroll.appendChild(row);
+  });updateBadge();
+}
+function toggleDone(idx){pickItems[idx].done=!pickItems[idx].done;save();renderPicklist()}
+function updateBadge(){document.getElementById('list-badge').textContent=pickItems.length?` (${pickItems.length})`:''}
+function confirmClear(){if(!pickItems.length)return;if(confirm('Pickliste wirklich leeren?')){pickItems=[];save();renderPicklist();renderScanList()}}
+
+// ══ PRODUKTDATENBANK ══
+function renderProductTable(){
+  const tbody=document.getElementById('prod-tbody');const empty=document.getElementById('prod-empty');const table=document.getElementById('prod-table');const count=document.getElementById('prod-count-label');
+  const entries=Object.entries(products);count.textContent=entries.length;
+  document.getElementById('db-count-header').textContent=entries.length+' Produkte';
+  tbody.innerHTML='';
+  if(!entries.length){empty.style.display='block';table.style.display='none';return}
+  empty.style.display='none';table.style.display='table';
+  entries.forEach(([bc,prod])=>{const tr=document.createElement('tr');tr.innerHTML=`<td style="font-family:'IBM Plex Mono',monospace;color:var(--muted);font-size:11px">${esc(bc)}</td><td style="font-weight:500">${esc(prod.name)}</td><td style="color:var(--text2)">${esc(prod.unit||'–')}</td><td><button class="del-prod" data-bc="${esc(bc)}">✕</button></td>`;tbody.appendChild(tr)});
+}
+function importCSV(){
+  const raw=document.getElementById('csv-area').value.trim();const status=document.getElementById('import-status');
+  if(!raw){status.className='import-status err';status.textContent='Bitte CSV-Daten einfügen.';return}
+  let count=0,skip=0;
+  raw.split(/\r?\n/).filter(l=>l.trim()).forEach((line,i)=>{
+    const parts=line.split(';');if(parts.length<2){skip++;return}
+    const bc=parts[0].trim().replace(/^["']|["']$/g,'');
+    const name=parts[1].trim().replace(/^["']|["']$/g,'');
+    const unit=(parts[2]||'').trim().replace(/^["']|["']$/g,'');
+    if(!bc||!name){skip++;return}
+    if(i===0&&(bc.toLowerCase().includes('barcode')||bc.toLowerCase().includes('code')))return;
+    products[bc]={name,unit};count++;
+  });
+  save();renderProductTable();
+  if(count>0){status.className='import-status ok';status.textContent=`✓ ${count} Produkte importiert${skip?`, ${skip} übersprungen`:''}.`;document.getElementById('csv-area').value=''}
+  else{status.className='import-status err';status.textContent='Keine gültigen Einträge. Format: barcode;produktname;einheit'}
+}
+function addManual(){
+  const bc=document.getElementById('new-bc').value.trim();const name=document.getElementById('new-name').value.trim();const unit=document.getElementById('new-unit').value.trim();
+  if(!bc||!name){toast('Barcode und Name angeben!');return}
+  products[bc]={name,unit};save();renderProductTable();
+  document.getElementById('new-bc').value='';document.getElementById('new-name').value='';document.getElementById('new-unit').value='';toast('Produkt hinzugefügt');
+}
+document.getElementById('prod-tbody').addEventListener('click',e=>{const btn=e.target.closest('.del-prod');if(btn){const bc=btn.getAttribute('data-bc');delete products[bc];save();renderProductTable()}});
+function clearProducts(){if(!confirm('Alle Produkte löschen?'))return;products={};save();renderProductTable();document.getElementById('db-count-header').textContent='0 Produkte'}
+function exportCSV(){
+  const entries=Object.entries(products);if(!entries.length){toast('Keine Produkte');return}
+  const csv='barcode;produktname;einheit\n'+entries.map(([bc,p])=>`${bc};${p.name};${p.unit||''}`).join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='hofladen-produkte.csv';a.click();
+}
+
+// ══ UTILS ══
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+let toastTimer;
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2400)}
+
+
+
+// Fokus halten wenn nicht in Textfeldern
+document.addEventListener('click',e=>{
+  if(!['qty-input','csv-area','new-bc','new-name','new-unit','barcode-input'].includes(e.target.id)&&!e.target.classList.contains('cam-btn'))
+    if(document.getElementById('view-scan').style.display!=='none'&&!cameraActive)
+      setTimeout(()=>document.getElementById('barcode-input').focus(),50);
+});
+
+// ══ INIT ══
+load();showTab('scan');renderScanList();updateBadge();
+document.getElementById('db-count-header').textContent=Object.keys(products).length+' Produkte';
+</script>
+</body>
+</html>
