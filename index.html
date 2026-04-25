@@ -366,27 +366,20 @@ async function startCamera(){
   const btn=document.getElementById('cam-btn');
   const video=document.getElementById('cam-video');
 
-  try{
-    cameraStream=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}
-    });
-    video.srcObject=cameraStream;
-    await video.play();
-    container.classList.add('open');
-    btn.classList.add('active');
-    btn.textContent='⏹';
-    cameraActive=true;
-  }catch(err){
-    let msg='Kamera konnte nicht geöffnet werden.';
-    if(err.name==='NotAllowedError'||err.toString().includes('NotAllowed'))
-      msg='Kamerazugriff verweigert – bitte in den Einstellungen erlauben.';
-    toast(msg);
-    return;
-  }
+  container.classList.add('open');
+  btn.classList.add('active');
+  btn.textContent='⏹';
+  cameraActive=true;
 
   // Methode 1: native BarcodeDetector (iOS 17.4+, Chrome Android)
   if('BarcodeDetector' in window){
     try{
+      cameraStream=await navigator.mediaDevices.getUserMedia({
+        video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}
+      });
+      video.srcObject=cameraStream;
+      video.style.display='block';
+      await video.play();
       const detector=new BarcodeDetector({
         formats:['ean_13','ean_8','code_128','code_39','upc_a','upc_e','qr_code']
       });
@@ -401,31 +394,64 @@ async function startCamera(){
       }
       scanAnimFrame=requestAnimationFrame(detectNative);
       return;
-    }catch(e){}
+    }catch(e){
+      // Weiter zu Quagga2
+    }
   }
 
-  // Methode 2: Quagga2 (iOS Safari Fallback)
+  // Methode 2: Quagga2 verwaltet Kamera selbst
   if(typeof Quagga!=='undefined'){
+    video.style.display='none'; // Quagga baut eigenes Video-Element
     Quagga.init({
       inputStream:{
         type:'LiveStream',
-        target:video,
-        constraints:{facingMode:'environment'},
-        area:{top:'15%',right:'5%',left:'5%',bottom:'15%'}
+        target:container,
+        constraints:{
+          facingMode:'environment',
+          width:{min:640,ideal:1280,max:1920},
+          height:{min:480,ideal:720,max:1080}
+        }
       },
       decoder:{
-        readers:['ean_reader','ean_8_reader','code_128_reader','code_39_reader','upc_reader','upc_e_reader']
+        readers:[
+          'ean_reader',
+          'ean_8_reader',
+          'code_128_reader',
+          'code_39_reader',
+          'upc_reader',
+          'upc_e_reader'
+        ],
+        multiple:false
       },
       locate:true,
       numOfWorkers:0,
-      frequency:10
+      frequency:15
     },(err)=>{
-      if(err){toast('Scanner-Fehler: '+err);stopCamera();return;}
+      if(err){
+        console.error('Quagga init error:',err);
+        container.querySelector('.cam-hint').textContent='Fehler: '+JSON.stringify(err);
+        stopCamera();
+        return;
+      }
       Quagga.start();
-      Quagga.onDetected((data)=>{
-        const code=data&&data.result&&data.result.codeResult&&data.result.codeResult.code;
-        if(code&&!scanCooldown)onCameraScan(code);
-      });
+      // Quagga-Video stylen
+      const qVideo=container.querySelector('video');
+      if(qVideo){
+        qVideo.style.cssText='width:100%;max-height:260px;object-fit:cover;display:block';
+      }
+      // Quagga-Canvas ausblenden
+      const qCanvas=container.querySelectorAll('canvas');
+      qCanvas.forEach(c=>{if(!c.id||c.id!=='scan-flash')c.style.display='none'});
+    });
+    Quagga.onDetected((data)=>{
+      if(!cameraActive||scanCooldown)return;
+      const code=data?.result?.codeResult?.code;
+      // Plausibilitätsprüfung: nur Codes mit guter Konfidenz
+      const err=data?.result?.codeResult?.decodedCodes
+        ?.filter(x=>x.error!=null)
+        ?.reduce((s,x)=>s+x.error,0);
+      const avg=err/(data?.result?.codeResult?.decodedCodes?.filter(x=>x.error!=null)?.length||1);
+      if(code&&avg<0.25)onCameraScan(code);
     });
     return;
   }
@@ -457,11 +483,14 @@ function onCameraScan(code){
 
 function stopCamera(){
   if(scanAnimFrame){cancelAnimationFrame(scanAnimFrame);scanAnimFrame=null;}
-  if(typeof Quagga!=='undefined'){try{Quagga.stop();}catch(e){}}
+  if(typeof Quagga!=='undefined'){try{Quagga.stop();Quagga.offDetected();}catch(e){}}
   if(cameraStream){cameraStream.getTracks().forEach(t=>t.stop());cameraStream=null;}
   const video=document.getElementById('cam-video');
-  if(video){video.srcObject=null;}
-  document.getElementById('cam-container').classList.remove('open');
+  if(video){video.srcObject=null;video.style.display='block';}
+  // Quagga-eigene Elemente entfernen
+  const container=document.getElementById('cam-container');
+  container.querySelectorAll('video:not(#cam-video), canvas').forEach(el=>el.remove());
+  container.classList.remove('open');
   const btn=document.getElementById('cam-btn');
   btn.classList.remove('active');btn.textContent='📷';
   cameraActive=false;
