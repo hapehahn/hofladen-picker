@@ -6,7 +6,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Regalbestückung · Odoo</title>
-<script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
+<script>
+// Platzhalter
+</script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
   :root {
@@ -53,8 +55,6 @@
   .cam-finder{width:240px;height:100px;border:2px solid var(--odoo-teal);border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,.5)}
   .cam-hint{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:12px;color:rgba(255,255,255,.85);letter-spacing:.02em;text-shadow:0 1px 3px rgba(0,0,0,.5);pointer-events:none}
   .cam-close{position:absolute;top:8px;right:10px;background:rgba(0,0,0,.55);border:none;color:#fff;font-size:13px;padding:4px 10px;border-radius:99px;cursor:pointer;z-index:10}
-
-  /* Beep flash */
   .scan-flash{position:absolute;inset:0;background:rgba(0,160,157,.35);opacity:0;transition:opacity .1s;pointer-events:none}
   .scan-flash.flash{opacity:1}
 
@@ -199,15 +199,14 @@
       <button class="cam-btn" id="kbd-btn" onclick="toggleKeyboard()" title="Manuell eingeben" style="background:var(--odoo-purple)">
         🔢
       </button>
-      <button class="cam-btn" id="cam-btn" onclick="toggleCamera()" title="Kamera scannen">
+      <button class="cam-btn" id="cam-btn" onclick="toggleCamera()" title="Kamera scannen" style="display:none">
         📷
       </button>
     </div>
 
-    <!-- Kamera-Sucher -->
+    <!-- Kamera-Sucher (nur Android/BarcodeDetector) -->
     <div id="cam-container">
-      <video id="cam-video" autoplay playsinline muted webkit-playsinline></video>
-      <canvas id="cam-canvas" style="display:none"></canvas>
+      <video id="cam-video" autoplay playsinline muted></video>
       <div class="cam-overlay">
         <div class="cam-finder"></div>
       </div>
@@ -290,7 +289,7 @@
 <script>
 // ══ STATE ══
 let products={}, pickItems=[], currentProduct=null;
-let cameraActive=false, scanCooldown=false, cameraStream=null;
+let scanCooldown=false, cameraActive=false, cameraStream=null, scanAnimFrame=null;
 
 // ══ PERSIST ══
 function save(){
@@ -353,111 +352,45 @@ function toggleKeyboard(){
   }
 }
 
-
+// ══ KAMERA (nur wenn BarcodeDetector verfügbar) ══
 async function toggleCamera(){
   if(cameraActive){stopCamera();return}
   await startCamera();
 }
 
-let scanAnimFrame=null;
-
 async function startCamera(){
   const container=document.getElementById('cam-container');
   const btn=document.getElementById('cam-btn');
   const video=document.getElementById('cam-video');
-
-  container.classList.add('open');
-  btn.classList.add('active');
-  btn.textContent='⏹';
-  cameraActive=true;
-
-  // Methode 1: native BarcodeDetector (iOS 17.4+, Chrome Android)
-  if('BarcodeDetector' in window){
-    try{
-      cameraStream=await navigator.mediaDevices.getUserMedia({
-        video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}
-      });
-      video.srcObject=cameraStream;
-      video.style.display='block';
-      await video.play();
-      const detector=new BarcodeDetector({
-        formats:['ean_13','ean_8','code_128','code_39','upc_a','upc_e','qr_code']
-      });
-      function detectNative(){
-        if(!cameraActive)return;
-        if(video.readyState>=2&&!scanCooldown){
-          detector.detect(video).then(codes=>{
-            if(codes.length&&!scanCooldown)onCameraScan(codes[0].rawValue);
-          }).catch(()=>{});
-        }
-        scanAnimFrame=requestAnimationFrame(detectNative);
+  try{
+    cameraStream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}
+    });
+    video.srcObject=cameraStream;
+    await video.play();
+    container.classList.add('open');
+    btn.classList.add('active');
+    btn.textContent='⏹';
+    cameraActive=true;
+    const detector=new BarcodeDetector({
+      formats:['ean_13','ean_8','code_128','code_39','upc_a','upc_e','qr_code']
+    });
+    function detect(){
+      if(!cameraActive)return;
+      if(video.readyState>=2&&!scanCooldown){
+        detector.detect(video).then(codes=>{
+          if(codes.length&&!scanCooldown)onCameraScan(codes[0].rawValue);
+        }).catch(()=>{});
       }
-      scanAnimFrame=requestAnimationFrame(detectNative);
-      return;
-    }catch(e){
-      // Weiter zu Quagga2
+      scanAnimFrame=requestAnimationFrame(detect);
     }
+    scanAnimFrame=requestAnimationFrame(detect);
+  }catch(err){
+    let msg='Kamera konnte nicht geöffnet werden.';
+    if(err.name==='NotAllowedError')msg='Kamerazugriff verweigert – bitte in den Einstellungen erlauben.';
+    toast(msg);
+    stopCamera();
   }
-
-  // Methode 2: Quagga2 verwaltet Kamera selbst
-  if(typeof Quagga!=='undefined'){
-    video.style.display='none'; // Quagga baut eigenes Video-Element
-    Quagga.init({
-      inputStream:{
-        type:'LiveStream',
-        target:container,
-        constraints:{
-          facingMode:'environment',
-          width:{min:640,ideal:1280,max:1920},
-          height:{min:480,ideal:720,max:1080}
-        }
-      },
-      decoder:{
-        readers:[
-          'ean_reader',
-          'ean_8_reader',
-          'code_128_reader',
-          'code_39_reader',
-          'upc_reader',
-          'upc_e_reader'
-        ],
-        multiple:false
-      },
-      locate:true,
-      numOfWorkers:0,
-      frequency:15
-    },(err)=>{
-      if(err){
-        console.error('Quagga init error:',err);
-        container.querySelector('.cam-hint').textContent='Fehler: '+JSON.stringify(err);
-        stopCamera();
-        return;
-      }
-      Quagga.start();
-      // Quagga-Video stylen
-      const qVideo=container.querySelector('video');
-      if(qVideo){
-        qVideo.style.cssText='width:100%;max-height:260px;object-fit:cover;display:block';
-      }
-      // Quagga-Canvas ausblenden
-      const qCanvas=container.querySelectorAll('canvas');
-      qCanvas.forEach(c=>{if(!c.id||c.id!=='scan-flash')c.style.display='none'});
-    });
-    Quagga.onDetected((data)=>{
-      if(!cameraActive||scanCooldown)return;
-      const code=data?.result?.codeResult?.code;
-      // Plausibilitätsprüfung: nur Codes mit guter Konfidenz
-      const err=data?.result?.codeResult?.decodedCodes
-        ?.filter(x=>x.error!=null)
-        ?.reduce((s,x)=>s+x.error,0);
-      const avg=err/(data?.result?.codeResult?.decodedCodes?.filter(x=>x.error!=null)?.length||1);
-      if(code&&avg<0.25)onCameraScan(code);
-    });
-    return;
-  }
-
-  // Kein Scanner verfügbar
-  container.querySelector('.cam-hint').textContent='Barcode-Erkennung nicht verfügbar – bitte 🔢 nutzen';
 }
 
 function onCameraScan(code){
@@ -483,19 +416,19 @@ function onCameraScan(code){
 
 function stopCamera(){
   if(scanAnimFrame){cancelAnimationFrame(scanAnimFrame);scanAnimFrame=null;}
-  if(typeof Quagga!=='undefined'){try{Quagga.stop();Quagga.offDetected();}catch(e){}}
   if(cameraStream){cameraStream.getTracks().forEach(t=>t.stop());cameraStream=null;}
   const video=document.getElementById('cam-video');
-  if(video){video.srcObject=null;video.style.display='block';}
-  // Quagga-eigene Elemente entfernen
-  const container=document.getElementById('cam-container');
-  container.querySelectorAll('video:not(#cam-video), canvas').forEach(el=>el.remove());
-  container.classList.remove('open');
+  if(video)video.srcObject=null;
+  document.getElementById('cam-container').classList.remove('open');
   const btn=document.getElementById('cam-btn');
-  btn.classList.remove('active');btn.textContent='📷';
+  if(btn){btn.classList.remove('active');btn.textContent='📷';}
   cameraActive=false;
 }
 
+// Kamera-Button nur einblenden wenn BarcodeDetector verfügbar
+if('BarcodeDetector' in window){
+  document.getElementById('cam-btn').style.display='flex';
+}
 
 // ══ BARCODE EINGABE ══
 function onBarcodeInput(val){lookupBarcode(val.trim())}
@@ -625,7 +558,7 @@ function exportCSV(){
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='hofladen-produkte.csv';a.click();
 }
 
-const APP_VERSION='v1.0';
+const APP_VERSION='v1.1';
 function setProductCount(n){
   document.getElementById('db-count-header').innerHTML=
     `<div>${n} Produkte</div><div style="color:rgba(255,255,255,.35);font-size:10px">${APP_VERSION}</div>`;
