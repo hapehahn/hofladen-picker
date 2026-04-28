@@ -244,6 +244,7 @@
   <div class="picklist-scroll" id="pick-scroll"></div>
   <div class="bottom-bar" id="bar-list">
     <button class="bar-btn" onclick="window.print()">🖨 Drucken</button>
+    <button class="bar-btn" onclick="downloadPickCSV()">⬇ CSV</button>
     <button class="bar-btn danger" onclick="confirmClear()">🗑 Leeren</button>
     <button class="bar-btn primary" onclick="showTab('scan')">← Zurück</button>
   </div>
@@ -517,6 +518,23 @@ function toggleDone(idx){pickItems[idx].done=!pickItems[idx].done;save();renderP
 function updateBadge(){document.getElementById('list-badge').textContent=pickItems.length?` (${pickItems.length})`:''}
 function confirmClear(){if(!pickItems.length)return;if(confirm('Pickliste wirklich leeren?')){pickItems=[];save();renderPicklist();renderScanList()}}
 
+function downloadPickCSV(){
+  if(!pickItems.length){toast('Pickliste ist leer');return}
+  const now=new Date();
+  const dateStr=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  const timeStr=String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0');
+  const header='Barcode;Produktname;Einheit;Menge;Erledigt';
+  const rows=pickItems.map(i=>
+    `${i.barcode};"${i.name.replace(/"/g,'""')}";${i.unit||''};${i.qty};${i.done?'ja':'nein'}`
+  );
+  const csv=header+'\n'+rows.join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download=`inventur_${dateStr}_${timeStr}.csv`;
+  a.click();
+  toast('CSV heruntergeladen');
+}
+
 // ══ PRODUKTDATENBANK ══
 function renderProductTable(){
   const tbody=document.getElementById('prod-tbody');const empty=document.getElementById('prod-empty');const table=document.getElementById('prod-table');const count=document.getElementById('prod-count-label');
@@ -558,7 +576,7 @@ function exportCSV(){
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='hofladen-produkte.csv';a.click();
 }
 
-const APP_VERSION='v1.1';
+const APP_VERSION='v1.2';
 function setProductCount(n){
   document.getElementById('db-count-header').innerHTML=
     `<div>${n} Produkte</div><div style="color:rgba(255,255,255,.35);font-size:10px">${APP_VERSION}</div>`;
