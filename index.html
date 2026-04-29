@@ -69,13 +69,9 @@
   .dot-ok{background:var(--odoo-teal)}.dot-err{background:#e07060}
 
   /* Qty */
-  .qty-row{display:flex;gap:12px;margin-top:10px;align-items:center}
-  .qty-display{background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--radius);font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:600;color:var(--text);min-width:80px;padding:8px 12px;text-align:center;flex-shrink:0}
-  .numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;flex:1}
-  .np-btn{background:var(--surface);border:1.5px solid var(--border2);border-radius:var(--radius);font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:500;color:var(--text);padding:10px 0;cursor:pointer;transition:background .1s;-webkit-tap-highlight-color:transparent;user-select:none}
-  .np-btn:active{background:var(--border)}
-  .np-clear{color:var(--danger);border-color:#e07060}
-  .np-del{color:var(--odoo-purple)}
+  .qty-row{display:flex;gap:8px;margin-top:10px;align-items:center}
+  .qty-btn{width:44px;height:44px;background:var(--surface2);border:1.5px solid var(--border2);border-radius:var(--radius);color:var(--text);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .1s;flex-shrink:0;font-weight:500}
+  .qty-btn:active{background:var(--border)}
 
   .add-btn{width:100%;margin-top:10px;padding:12px;background:var(--odoo-purple);color:#fff;border:none;border-radius:var(--radius);font-family:'IBM Plex Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .15s,transform .1s}
   .add-btn:active{opacity:.88;transform:scale(.99)}
@@ -220,25 +216,14 @@
       <span class="hint">Barcode scannen → Produkt erscheint hier</span>
     </div>
 
-    <!-- Mengeneingabe mit eigenem Nummernblock -->
+    <!-- Kompakte Mengenanzeige → öffnet Modal -->
     <div class="qty-row">
-      <div class="qty-display" id="qty-display">0</div>
-      <div class="numpad">
-        <button class="np-btn" onclick="npPress('1')">1</button>
-        <button class="np-btn" onclick="npPress('2')">2</button>
-        <button class="np-btn" onclick="npPress('3')">3</button>
-        <button class="np-btn" onclick="npPress('4')">4</button>
-        <button class="np-btn" onclick="npPress('5')">5</button>
-        <button class="np-btn" onclick="npPress('6')">6</button>
-        <button class="np-btn" onclick="npPress('7')">7</button>
-        <button class="np-btn" onclick="npPress('8')">8</button>
-        <button class="np-btn" onclick="npPress('9')">9</button>
-        <button class="np-btn np-clear" onclick="npClear()">C</button>
-        <button class="np-btn" onclick="npPress('0')">0</button>
-        <button class="np-btn np-del" onclick="npBackspace()">⌫</button>
-      </div>
+      <span style="font-size:13px;color:var(--muted)">Menge:</span>
+      <div id="qty-display" onclick="openMainQtyModal()"
+           style="flex:1;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--radius);font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:700;color:var(--odoo-purple);text-align:center;padding:8px 12px;cursor:pointer;transition:border-color .15s">0</div>
+      <button class="qty-btn" onclick="adjustQty(-1)" style="width:44px;height:44px">−</button>
+      <button class="qty-btn" onclick="adjustQty(+1)" style="width:44px;height:44px">+</button>
     </div>
-    <!-- verstecktes Feld für JS-Kompatibilität -->
     <input id="qty-input" type="hidden" value="0">
     <button class="add-btn" id="add-btn" onclick="addItem()" disabled>+ Zur Packliste hinzufügen</button>
   </div>
@@ -300,6 +285,32 @@
 </div>
 
 </div><!-- #app -->
+
+<!-- Mengen-Modal -->
+<div id="qty-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;align-items:flex-end;justify-content:center">
+  <div style="background:var(--surface);border-radius:16px 16px 0 0;padding:20px 18px 32px;width:100%;max-width:540px;box-shadow:0 -4px 24px rgba(44,36,56,.18)">
+    <div id="qty-modal-title" style="font-size:14px;font-weight:600;color:var(--text2);margin-bottom:12px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+    <div id="qty-modal-display" style="font-family:'IBM Plex Mono',monospace;font-size:40px;font-weight:700;color:var(--odoo-purple);text-align:center;margin-bottom:14px;min-height:52px"></div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
+      <button class="np-btn" onclick="modalNp('1')">1</button>
+      <button class="np-btn" onclick="modalNp('2')">2</button>
+      <button class="np-btn" onclick="modalNp('3')">3</button>
+      <button class="np-btn" onclick="modalNp('4')">4</button>
+      <button class="np-btn" onclick="modalNp('5')">5</button>
+      <button class="np-btn" onclick="modalNp('6')">6</button>
+      <button class="np-btn" onclick="modalNp('7')">7</button>
+      <button class="np-btn" onclick="modalNp('8')">8</button>
+      <button class="np-btn" onclick="modalNp('9')">9</button>
+      <button class="np-btn np-clear" onclick="modalNp('C')">C</button>
+      <button class="np-btn" onclick="modalNp('0')">0</button>
+      <button class="np-btn np-del" onclick="modalNp('⌫')">⌫</button>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="modalCancel()" style="flex:1;padding:13px;border-radius:8px;border:1.5px solid var(--border2);background:var(--surface);font-family:'IBM Plex Sans',sans-serif;font-size:15px;cursor:pointer;color:var(--text)">Abbrechen</button>
+      <button onclick="modalOk()" style="flex:2;padding:13px;border-radius:8px;border:none;background:var(--odoo-purple);color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer">✓ Übernehmen</button>
+    </div>
+  </div>
+</div>
 <div id="toast"></div>
 
 <script>
@@ -503,7 +514,7 @@ function lookupBarcode(code){
   document.getElementById('add-btn').disabled=false;
 }
 
-function onQtyKey(e){}  // nicht mehr benötigt
+function onQtyKey(e){}
 function getQty(){return parseInt(document.getElementById('qty-input').value)||0}
 function setQty(n){
   const v=Math.max(0,n);
@@ -511,15 +522,41 @@ function setQty(n){
   document.getElementById('qty-display').textContent=v||'0';
 }
 function adjustQty(d){setQty(getQty()+d)}
-function npPress(digit){
-  const cur=document.getElementById('qty-input').value;
-  const next=cur==='0'?digit:cur+digit;
-  setQty(parseInt(next)||0);
+
+function openMainQtyModal(){
+  showQtyModal(
+    currentProduct?currentProduct.name:'Menge eingeben',
+    getQty()||1,
+    (newQty)=>setQty(newQty)
+  );
 }
-function npClear(){setQty(0)}
-function npBackspace(){
-  const cur=String(document.getElementById('qty-input').value);
-  setQty(cur.length<=1?0:parseInt(cur.slice(0,-1))||0);
+
+// ══ MENGEN-MODAL ══
+let modalCallback=null;
+let modalValue='0';
+
+function showQtyModal(title, currentQty, callback){
+  modalCallback=callback;
+  modalValue=String(currentQty||0);
+  document.getElementById('qty-modal-title').textContent=title;
+  document.getElementById('qty-modal-display').textContent=modalValue;
+  document.getElementById('qty-modal').style.display='flex';
+}
+function modalNp(key){
+  if(key==='C'){modalValue='0';}
+  else if(key==='⌫'){modalValue=modalValue.length<=1?'0':modalValue.slice(0,-1);}
+  else{modalValue=modalValue==='0'?key:modalValue+key;}
+  document.getElementById('qty-modal-display').textContent=modalValue;
+}
+function modalOk(){
+  const n=parseInt(modalValue)||0;
+  if(n>0&&modalCallback)modalCallback(n);
+  document.getElementById('qty-modal').style.display='none';
+  modalCallback=null;
+}
+function modalCancel(){
+  document.getElementById('qty-modal').style.display='none';
+  modalCallback=null;
 }
 
 // ══ ARTIKEL HINZUFÜGEN (manueller Button) ══
@@ -556,19 +593,14 @@ function renderScanList(){
 }
 function removeItem(idx){packItems.splice(idx,1);save();renderScanList()}
 function editQty(idx){
-  const item=packItems[idx];
-  const card=document.querySelector(`.item-card[data-idx="${idx}"]`);
-  if(!card)return;
-  const qtyDiv=card.querySelector('.item-qty');
-  const input=document.createElement('input');
-  input.type='text';input.inputMode='decimal';input.pattern='[0-9]*';
-  input.value=item.qty;
-  input.style.cssText='width:54px;font-size:15px;font-weight:600;text-align:center;border:2px solid var(--odoo-teal);border-radius:6px;padding:4px;background:#fff;color:var(--text);font-family:IBM Plex Mono,monospace';
-  qtyDiv.replaceWith(input);
-  input.focus();input.select();
-  function commit(){const n=parseInt(input.value);if(n>0){item.qty=n;save();}renderScanList();}
-  input.addEventListener('blur',commit);
-  input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();input.blur();}});
+  showQtyModal(
+    packItems[idx].name,
+    packItems[idx].qty,
+    (newQty)=>{
+      packItems[idx].qty=newQty;
+      save();renderScanList();
+    }
+  );
 }
 
 // ══ PICKLISTE ══
@@ -582,11 +614,12 @@ function renderPicklist(){
   prog.style.display='block';fill.style.width=(done/packItems.length*100).toFixed(1)+'%';
   packItems.forEach((item,idx)=>{
     const row=document.createElement('div');row.className='pack-item';
-    row.innerHTML=`<div class="pack-check ${item.done?'done':''}" onclick="toggleDone(${idx})"></div><div class="pack-info"><div class="pack-name ${item.done?'done':''}">${esc(item.name)}</div><div class="pack-code">${esc(item.barcode)}</div></div><div><div class="pack-qty-badge">${item.qty}</div><div class="pack-unit">${esc(item.unit||'Stk.')}</div></div>`;
+    row.innerHTML=`<div class="pack-check ${item.done?'done':''}" onclick="toggleDone(${idx})"></div><div class="pack-info"><div class="pack-name ${item.done?'done':''}">${esc(item.name)}</div><div class="pack-code">${esc(item.barcode)}</div></div><div style="display:flex;align-items:center;gap:8px"><div><div class="pack-qty-badge">${item.qty}</div><div class="pack-unit">${esc(item.unit||'Stk.')}</div></div><button class="item-del" onclick="removePackItem(${idx})" style="flex-shrink:0">🗑</button></div>`;
     scroll.appendChild(row);
   });updateBadge();
 }
 function toggleDone(idx){packItems[idx].done=!packItems[idx].done;save();renderPicklist()}
+function removePackItem(idx){packItems.splice(idx,1);save();renderPicklist();}
 function updateBadge(){document.getElementById('list-badge').textContent=packItems.length?` (${packItems.length})`:''}
 function confirmClear(){if(!packItems.length)return;if(confirm('Packliste wirklich leeren?')){packItems=[];save();renderPicklist();renderScanList()}}
 
@@ -648,7 +681,7 @@ function exportCSV(){
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='hofladen-produkte.csv';a.click();
 }
 
-const APP_VERSION='v1.8';
+const APP_VERSION='v2.0';
 function setProductCount(n){
   document.getElementById('db-count-header').innerHTML=
     `<div>${n} Produkte</div><div style="color:rgba(255,255,255,.35);font-size:10px">${APP_VERSION}</div>`;
@@ -662,7 +695,7 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
 
 // Fokus halten wenn nicht in Textfeldern oder interaktiven Elementen
 document.addEventListener('click',e=>{
-  const skipIds=['qty-input','csv-area','new-bc','new-name','new-unit','barcode-input'];
+  const skipIds=['qty-input','qty-display','csv-area','new-bc','new-name','new-unit','barcode-input'];
   const skipClasses=['cam-btn','item-qty','pack-check','qty-btn','bar-btn','btn-sm','import-btn','add-btn','item-del','del-prod'];
   const skipTags=['BUTTON','SELECT','TEXTAREA'];
   if(skipIds.includes(e.target.id)) return;
