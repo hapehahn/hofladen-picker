@@ -97,22 +97,22 @@
 
   /* Picklist View */
   #view-list{display:none;flex-direction:column;flex:1;overflow:hidden}
-  .picklist-header{padding:14px 16px 12px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:baseline;gap:12px;flex-shrink:0;box-shadow:0 2px 8px rgba(113,75,103,.05)}
-  .picklist-title{font-size:17px;font-weight:700;color:var(--text);flex:1}
-  .picklist-meta{font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
-  .picklist-scroll{flex:1;overflow-y:auto;padding:0 16px 80px}
+  .packlist-header{padding:14px 16px 12px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:baseline;gap:12px;flex-shrink:0;box-shadow:0 2px 8px rgba(113,75,103,.05)}
+  .packlist-title{font-size:17px;font-weight:700;color:var(--text);flex:1}
+  .packlist-meta{font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+  .packlist-scroll{flex:1;overflow-y:auto;padding:0 16px 80px}
   .progress-bar-wrap{height:3px;background:var(--border);overflow:hidden;flex-shrink:0}
   .progress-bar-fill{height:100%;background:var(--odoo-teal);transition:width .3s ease}
-  .pick-item{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--border)}
-  .pick-check{width:26px;height:26px;border:2px solid var(--border2);border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s;flex-shrink:0;background:var(--surface)}
-  .pick-check.done{background:var(--odoo-teal);border-color:var(--odoo-teal)}
-  .pick-check.done::after{content:'✓';font-size:14px;color:white;font-weight:700}
-  .pick-info{flex:1;min-width:0}
-  .pick-name{font-size:15px;font-weight:600;transition:opacity .2s,color .2s;color:var(--text)}
-  .pick-name.done{opacity:.4;text-decoration:line-through;color:var(--muted)}
-  .pick-code{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);margin-top:2px}
-  .pick-qty-badge{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:var(--odoo-purple);flex-shrink:0;min-width:36px;text-align:right;line-height:1}
-  .pick-unit{font-size:10px;color:var(--muted);text-align:right;margin-top:2px}
+  .pack-item{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--border)}
+  .pack-check{width:26px;height:26px;border:2px solid var(--border2);border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s;flex-shrink:0;background:var(--surface)}
+  .pack-check.done{background:var(--odoo-teal);border-color:var(--odoo-teal)}
+  .pack-check.done::after{content:'✓';font-size:14px;color:white;font-weight:700}
+  .pack-info{flex:1;min-width:0}
+  .pack-name{font-size:15px;font-weight:600;transition:opacity .2s,color .2s;color:var(--text)}
+  .pack-name.done{opacity:.4;text-decoration:line-through;color:var(--muted)}
+  .pack-code{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);margin-top:2px}
+  .pack-qty-badge{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:var(--odoo-purple);flex-shrink:0;min-width:36px;text-align:right;line-height:1}
+  .pack-unit{font-size:10px;color:var(--muted);text-align:right;margin-top:2px}
 
   /* Import View */
   #view-import{display:none;flex-direction:column;flex:1;overflow:hidden}
@@ -159,10 +159,10 @@
     header,.tabs,.scan-input-area,#view-scan,#view-import,.bottom-bar,#toast,.progress-bar-wrap{display:none!important}
     #view-list{display:block!important}
     body{background:white;color:black}
-    .picklist-header{box-shadow:none;border-bottom:2px solid #714B67}
-    .picklist-title{color:#714B67}
-    .pick-item{border-bottom:1px solid #ddd}
-    .pick-qty-badge{color:#714B67}
+    .packlist-header{box-shadow:none;border-bottom:2px solid #714B67}
+    .packlist-title{color:#714B67}
+    .pack-item{border-bottom:1px solid #ddd}
+    .pack-qty-badge{color:#714B67}
   }
 </style>
 </head>
@@ -183,7 +183,7 @@
 
 <div class="tabs">
   <div class="tab active" id="tab-scan" onclick="showTab('scan')">🔍 Scannen</div>
-  <div class="tab" id="tab-list" onclick="showTab('list')">📋 Pickliste<span id="list-badge"></span></div>
+  <div class="tab" id="tab-list" onclick="showTab('list')">📋 Packliste<span id="list-badge"></span></div>
   <div class="tab" id="tab-import" onclick="showTab('import')">⚙ Produkte</div>
 </div>
 
@@ -220,12 +220,12 @@
     </div>
     <div class="qty-row">
       <button class="qty-btn" onclick="adjustQty(-1)">−</button>
-      <input id="qty-input" class="qty-field" type="number" value="1" min="1" max="9999"
+      <input id="qty-input" class="qty-field" type="number" value="0" min="1" max="9999"
              inputmode="decimal" onkeydown="onQtyKey(event)">
       <span class="qty-label">Stk.</span>
       <button class="qty-btn" onclick="adjustQty(+1)">+</button>
     </div>
-    <button class="add-btn" id="add-btn" onclick="addItem()" disabled>+ Zur Pickliste hinzufügen</button>
+    <button class="add-btn" id="add-btn" onclick="addItem()" disabled>+ Zur Packliste hinzufügen</button>
   </div>
   <div class="list-area" id="scan-list-area">
     <div class="list-empty" id="scan-empty">Noch keine Artikel — Barcode scannen und Menge eingeben.</div>
@@ -234,14 +234,14 @@
 
 <!-- PICKLIST VIEW -->
 <div id="view-list">
-  <div class="picklist-header">
-    <div class="picklist-title">Pickliste</div>
-    <div class="picklist-meta" id="pick-meta">–</div>
+  <div class="packlist-header">
+    <div class="packlist-title">Packliste</div>
+    <div class="packlist-meta" id="pack-meta">–</div>
   </div>
   <div class="progress-bar-wrap" id="prog-wrap" style="display:none">
     <div class="progress-bar-fill" id="prog-fill" style="width:0%"></div>
   </div>
-  <div class="picklist-scroll" id="pick-scroll"></div>
+  <div class="packlist-scroll" id="pack-scroll"></div>
   <div class="bottom-bar" id="bar-list">
     <button class="bar-btn" onclick="window.print()">🖨 Drucken</button>
     <button class="bar-btn" onclick="downloadPickCSV()">⬇ CSV</button>
@@ -289,19 +289,19 @@
 
 <script>
 // ══ STATE ══
-let products={}, pickItems=[], currentProduct=null;
+let products={}, packItems=[], currentProduct=null;
 let scanCooldown=false, cameraActive=false, cameraStream=null, scanAnimFrame=null;
 
 // ══ PERSIST ══
 function save(){
   try{
-    const pd=JSON.stringify(products);const pi=JSON.stringify(pickItems);
+    const pd=JSON.stringify(products);const pi=JSON.stringify(packItems);
     localStorage.setItem('hfl_products',pd);
-    localStorage.setItem('hfl_pick',pi);
+    localStorage.setItem('hfl_pack',pi);
     // Cookie als Backup (180 Tage, SameSite=Lax)
     const exp=new Date();exp.setDate(exp.getDate()+180);
     document.cookie='hfl_products='+encodeURIComponent(pd)+';expires='+exp.toUTCString()+';path=/;SameSite=Lax';
-    document.cookie='hfl_pick='+encodeURIComponent(pi)+';expires='+exp.toUTCString()+';path=/;SameSite=Lax';
+    document.cookie='hfl_pack='+encodeURIComponent(pi)+';expires='+exp.toUTCString()+';path=/;SameSite=Lax';
   }catch(e){}
 }
 function getCookie(name){
@@ -312,9 +312,9 @@ function load(){
   try{
     // Erst localStorage, dann Cookie als Fallback
     let p=localStorage.getItem('hfl_products')||getCookie('hfl_products');
-    let pi=localStorage.getItem('hfl_pick')||getCookie('hfl_pick');
+    let pi=localStorage.getItem('hfl_pack')||getCookie('hfl_pack');
     if(p)products=JSON.parse(p);
-    if(pi)pickItems=JSON.parse(pi);
+    if(pi)packItems=JSON.parse(pi);
     // Auch alten Key migrieren falls vorhanden
     if(!p){const old=localStorage.getItem('hf3_products');if(old){products=JSON.parse(old);save();}}
   }catch(e){}
@@ -437,15 +437,17 @@ function onBarcodeKey(e){
   if(e.key==='Enter'){
     const v=document.getElementById('barcode-input').value.trim();
     if(!v)return;
-    // Gleicher Barcode nochmals gescannt → Menge hochzählen
     if(currentProduct && v===currentProduct.barcode){
+      // Gleicher Barcode → Menge hochzählen
       adjustQty(+1);
-      document.getElementById('barcode-input').value='';
     } else {
-      // Neuer Barcode → Produkt wechseln
+      // Neuer Barcode → alten Artikel automatisch zur Packliste hinzufügen
+      if(currentProduct) addItem(true);
       lookupBarcode(v);
-      document.getElementById('barcode-input').value='';
+      // Menge auf 1 setzen für neues Produkt
+      document.getElementById('qty-input').value='1';
     }
+    document.getElementById('barcode-input').value='';
     e.preventDefault();
   }
 }
@@ -473,12 +475,12 @@ function onQtyKey(e){if(e.key==='Enter'){addItem();e.preventDefault()}}
 function adjustQty(d){const f=document.getElementById('qty-input');f.value=Math.max(1,(parseInt(f.value)||1)+d)}
 
 // ══ ARTIKEL HINZUFÜGEN ══
-function addItem(){
+function addItem(silent=false){
   if(!currentProduct)return;
   const qty=Math.max(1,parseInt(document.getElementById('qty-input').value)||1);
-  const ex=pickItems.find(i=>i.barcode===currentProduct.barcode);
-  if(ex){ex.qty+=qty;toast(`+${qty} zu „${currentProduct.name}"`)}
-  else{pickItems.push({barcode:currentProduct.barcode,name:currentProduct.name,unit:currentProduct.unit||'',qty,done:false});toast(`„${currentProduct.name}" hinzugefügt`)}
+  const ex=packItems.find(i=>i.barcode===currentProduct.barcode);
+  if(ex){ex.qty+=qty;if(!silent)toast(`+${qty} zu „${currentProduct.name}"`)}
+  else{packItems.push({barcode:currentProduct.barcode,name:currentProduct.name,unit:currentProduct.unit||'',qty,done:false});if(!silent)toast(`„${currentProduct.name}" hinzugefügt`)}
   save();updateBadge();renderScanList();
   document.getElementById('barcode-input').value='';
   document.getElementById('qty-input').value='1';
@@ -493,47 +495,47 @@ function addItem(){
 function renderScanList(){
   const area=document.getElementById('scan-list-area');const empty=document.getElementById('scan-empty');
   area.querySelectorAll('.item-card,.list-section-label').forEach(el=>el.remove());
-  if(!pickItems.length){empty.style.display='block';return}
+  if(!packItems.length){empty.style.display='block';return}
   empty.style.display='none';
   const lbl=document.createElement('div');lbl.className='list-section-label';
-  lbl.textContent=`${pickItems.length} Artikel erfasst`;area.appendChild(lbl);
-  [...pickItems].reverse().forEach((item,ri)=>{
-    const idx=pickItems.length-1-ri;
+  lbl.textContent=`${packItems.length} Artikel erfasst`;area.appendChild(lbl);
+  [...packItems].reverse().forEach((item,ri)=>{
+    const idx=packItems.length-1-ri;
     const card=document.createElement('div');card.className='item-card';
     const unitLabel=item.unit?`, ${esc(item.unit)}`:'';
     card.innerHTML=`<span class="item-num">${idx+1}</span><div class="item-info"><div class="item-name">${esc(item.name)}${unitLabel}</div><div class="item-barcode">${esc(item.barcode)}</div></div><div class="item-qty" onclick="editQty(${idx})">${item.qty}</div><button class="item-del" onclick="removeItem(${idx})">✕</button>`;
     area.appendChild(card);
   });updateBadge();
 }
-function removeItem(idx){pickItems.splice(idx,1);save();renderScanList()}
-function editQty(idx){const item=pickItems[idx];const v=prompt(`Menge für „${item.name}":`,item.qty);if(v===null)return;const n=parseInt(v);if(n>0){item.qty=n;save();renderScanList();renderPicklist()}}
+function removeItem(idx){packItems.splice(idx,1);save();renderScanList()}
+function editQty(idx){const item=packItems[idx];const v=prompt(`Menge für „${item.name}":`,item.qty);if(v===null)return;const n=parseInt(v);if(n>0){item.qty=n;save();renderScanList();renderPicklist()}}
 
 // ══ PICKLISTE ══
 function renderPicklist(){
-  const scroll=document.getElementById('pick-scroll');const meta=document.getElementById('pick-meta');
+  const scroll=document.getElementById('pack-scroll');const meta=document.getElementById('pack-meta');
   const prog=document.getElementById('prog-wrap');const fill=document.getElementById('prog-fill');
   scroll.innerHTML='';
-  if(!pickItems.length){scroll.innerHTML='<div style="text-align:center;color:var(--muted);padding:40px 0;font-size:13px">Pickliste ist leer.</div>';meta.textContent='–';prog.style.display='none';return}
-  const total=pickItems.reduce((s,i)=>s+i.qty,0);const done=pickItems.filter(i=>i.done).length;
-  meta.textContent=`${done}/${pickItems.length} erledigt · ${total} Stk.`;
-  prog.style.display='block';fill.style.width=(done/pickItems.length*100).toFixed(1)+'%';
-  pickItems.forEach((item,idx)=>{
-    const row=document.createElement('div');row.className='pick-item';
-    row.innerHTML=`<div class="pick-check ${item.done?'done':''}" onclick="toggleDone(${idx})"></div><div class="pick-info"><div class="pick-name ${item.done?'done':''}">${esc(item.name)}</div><div class="pick-code">${esc(item.barcode)}</div></div><div><div class="pick-qty-badge">${item.qty}</div><div class="pick-unit">${esc(item.unit||'Stk.')}</div></div>`;
+  if(!packItems.length){scroll.innerHTML='<div style="text-align:center;color:var(--muted);padding:40px 0;font-size:13px">Packliste ist leer.</div>';meta.textContent='–';prog.style.display='none';return}
+  const total=packItems.reduce((s,i)=>s+i.qty,0);const done=packItems.filter(i=>i.done).length;
+  meta.textContent=`${done}/${packItems.length} erledigt · ${total} Stk.`;
+  prog.style.display='block';fill.style.width=(done/packItems.length*100).toFixed(1)+'%';
+  packItems.forEach((item,idx)=>{
+    const row=document.createElement('div');row.className='pack-item';
+    row.innerHTML=`<div class="pack-check ${item.done?'done':''}" onclick="toggleDone(${idx})"></div><div class="pack-info"><div class="pack-name ${item.done?'done':''}">${esc(item.name)}</div><div class="pack-code">${esc(item.barcode)}</div></div><div><div class="pack-qty-badge">${item.qty}</div><div class="pack-unit">${esc(item.unit||'Stk.')}</div></div>`;
     scroll.appendChild(row);
   });updateBadge();
 }
-function toggleDone(idx){pickItems[idx].done=!pickItems[idx].done;save();renderPicklist()}
-function updateBadge(){document.getElementById('list-badge').textContent=pickItems.length?` (${pickItems.length})`:''}
-function confirmClear(){if(!pickItems.length)return;if(confirm('Pickliste wirklich leeren?')){pickItems=[];save();renderPicklist();renderScanList()}}
+function toggleDone(idx){packItems[idx].done=!packItems[idx].done;save();renderPicklist()}
+function updateBadge(){document.getElementById('list-badge').textContent=packItems.length?` (${packItems.length})`:''}
+function confirmClear(){if(!packItems.length)return;if(confirm('Packliste wirklich leeren?')){packItems=[];save();renderPicklist();renderScanList()}}
 
 function downloadPickCSV(){
-  if(!pickItems.length){toast('Pickliste ist leer');return}
+  if(!packItems.length){toast('Packliste ist leer');return}
   const now=new Date();
   const dateStr=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
   const timeStr=String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0');
   const header='Barcode;Produktname;Einheit;Menge;Erledigt';
-  const rows=pickItems.map(i=>
+  const rows=packItems.map(i=>
     `${i.barcode};"${i.name.replace(/"/g,'""')}";${i.unit||''};${i.qty};${i.done?'ja':'nein'}`
   );
   const csv=header+'\n'+rows.join('\n');
@@ -585,7 +587,7 @@ function exportCSV(){
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='hofladen-produkte.csv';a.click();
 }
 
-const APP_VERSION='v1.3';
+const APP_VERSION='v1.4';
 function setProductCount(n){
   document.getElementById('db-count-header').innerHTML=
     `<div>${n} Produkte</div><div style="color:rgba(255,255,255,.35);font-size:10px">${APP_VERSION}</div>`;
