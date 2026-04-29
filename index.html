@@ -517,14 +517,28 @@ function renderScanList(){
   lbl.textContent=`${packItems.length} Artikel erfasst`;area.appendChild(lbl);
   [...packItems].reverse().forEach((item,ri)=>{
     const idx=packItems.length-1-ri;
-    const card=document.createElement('div');card.className='item-card';
+    const card=document.createElement('div');card.className='item-card';card.dataset.idx=idx;
     const unitLabel=item.unit?`, ${esc(item.unit)}`:'';
     card.innerHTML=`<span class="item-num">${idx+1}</span><div class="item-info"><div class="item-name">${esc(item.name)}${unitLabel}</div><div class="item-barcode">${esc(item.barcode)}</div></div><div class="item-qty" onclick="editQty(${idx})">${item.qty}</div><button class="item-del" onclick="removeItem(${idx})">✕</button>`;
     area.appendChild(card);
   });updateBadge();
 }
 function removeItem(idx){packItems.splice(idx,1);save();renderScanList()}
-function editQty(idx){const item=packItems[idx];const v=prompt(`Menge für „${item.name}":`,item.qty);if(v===null)return;const n=parseInt(v);if(n>0){item.qty=n;save();renderScanList();renderPicklist()}}
+function editQty(idx){
+  const item=packItems[idx];
+  const card=document.querySelector(`.item-card[data-idx="${idx}"]`);
+  if(!card)return;
+  const qtyDiv=card.querySelector('.item-qty');
+  const input=document.createElement('input');
+  input.type='number';input.inputMode='decimal';
+  input.value=item.qty;
+  input.style.cssText='width:54px;font-size:15px;font-weight:600;text-align:center;border:2px solid var(--odoo-teal);border-radius:6px;padding:4px;background:#fff;color:var(--text);font-family:IBM Plex Mono,monospace';
+  qtyDiv.replaceWith(input);
+  input.focus();input.select();
+  function commit(){const n=parseInt(input.value);if(n>0){item.qty=n;save();}renderScanList();}
+  input.addEventListener('blur',commit);
+  input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();input.blur();}});
+}
 
 // ══ PICKLISTE ══
 function renderPicklist(){
@@ -603,7 +617,7 @@ function exportCSV(){
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='hofladen-produkte.csv';a.click();
 }
 
-const APP_VERSION='v1.5';
+const APP_VERSION='v1.6';
 function setProductCount(n){
   document.getElementById('db-count-header').innerHTML=
     `<div>${n} Produkte</div><div style="color:rgba(255,255,255,.35);font-size:10px">${APP_VERSION}</div>`;
@@ -615,11 +629,17 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
 
 
 
-// Fokus halten wenn nicht in Textfeldern
+// Fokus halten wenn nicht in Textfeldern oder interaktiven Elementen
 document.addEventListener('click',e=>{
-  if(!['qty-input','csv-area','new-bc','new-name','new-unit','barcode-input'].includes(e.target.id)&&!e.target.classList.contains('cam-btn')&&e.target.id!=='kbd-btn')
-    if(document.getElementById('view-scan').style.display!=='none'&&!cameraActive)
-      setTimeout(()=>document.getElementById('barcode-input').focus(),50);
+  const skipIds=['qty-input','csv-area','new-bc','new-name','new-unit','barcode-input'];
+  const skipClasses=['cam-btn','item-qty','pack-check','qty-btn','bar-btn','btn-sm','import-btn','add-btn','item-del','del-prod'];
+  const skipTags=['BUTTON','SELECT','TEXTAREA'];
+  if(skipIds.includes(e.target.id)) return;
+  if(skipClasses.some(c=>e.target.classList.contains(c))) return;
+  if(skipTags.includes(e.target.tagName)) return;
+  if(e.target.id==='kbd-btn') return;
+  if(document.getElementById('view-scan').style.display!=='none'&&!cameraActive)
+    setTimeout(()=>document.getElementById('barcode-input').focus(),50);
 });
 
 // ══ CSV AUTO-LOAD von GitHub ══
