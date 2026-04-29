@@ -432,24 +432,41 @@ if('BarcodeDetector' in window){
 }
 
 // ══ BARCODE EINGABE ══
-function onBarcodeInput(val){lookupBarcode(val.trim())}
+// Kein live-lookup bei oninput — Scanner schickt alle Zeichen + Enter schnell hintereinander
+// Wir werten nur Enter aus um Zwischenzustände zu vermeiden
+function onBarcodeInput(val){
+  // absichtlich leer — Auswertung nur bei Enter
+}
 function onBarcodeKey(e){
   if(e.key==='Enter'){
     const v=document.getElementById('barcode-input').value.trim();
-    if(!v)return;
+    document.getElementById('barcode-input').value='';
+    if(!v){e.preventDefault();return;}
+
     if(currentProduct && v===currentProduct.barcode){
-      // Gleicher Barcode → Menge hochzählen
+      // Gleicher Barcode → Menge um 1 erhöhen
       adjustQty(+1);
     } else {
-      // Neuer Barcode → alten Artikel automatisch zur Packliste hinzufügen
-      if(currentProduct) addItem(true);
+      // Neuer Barcode → aktuellen Artikel erst in Packliste schreiben
+      if(currentProduct){
+        // Menge sichern bevor addItem sie zurücksetzt
+        const qty=Math.max(1,parseInt(document.getElementById('qty-input').value)||1);
+        addItemDirect(currentProduct, qty);
+      }
+      // Neues Produkt laden, Menge auf 1
       lookupBarcode(v);
-      // Menge auf 1 setzen für neues Produkt
       document.getElementById('qty-input').value='1';
     }
-    document.getElementById('barcode-input').value='';
     e.preventDefault();
   }
+}
+
+// Direktes Hinzufügen ohne Reset-Seiteneffekte von addItem()
+function addItemDirect(product, qty){
+  const ex=packItems.find(i=>i.barcode===product.barcode);
+  if(ex){ex.qty+=qty;}
+  else{packItems.push({barcode:product.barcode,name:product.name,unit:product.unit||'',qty,done:false});}
+  save();updateBadge();renderScanList();
 }
 
 function lookupBarcode(code){
@@ -474,16 +491,15 @@ function lookupBarcode(code){
 function onQtyKey(e){if(e.key==='Enter'){addItem();e.preventDefault()}}
 function adjustQty(d){const f=document.getElementById('qty-input');f.value=Math.max(1,(parseInt(f.value)||1)+d)}
 
-// ══ ARTIKEL HINZUFÜGEN ══
-function addItem(silent=false){
+// ══ ARTIKEL HINZUFÜGEN (manueller Button) ══
+function addItem(){
   if(!currentProduct)return;
   const qty=Math.max(1,parseInt(document.getElementById('qty-input').value)||1);
-  const ex=packItems.find(i=>i.barcode===currentProduct.barcode);
-  if(ex){ex.qty+=qty;if(!silent)toast(`+${qty} zu „${currentProduct.name}"`)}
-  else{packItems.push({barcode:currentProduct.barcode,name:currentProduct.name,unit:currentProduct.unit||'',qty,done:false});if(!silent)toast(`„${currentProduct.name}" hinzugefügt`)}
-  save();updateBadge();renderScanList();
+  addItemDirect(currentProduct, qty);
+  toast(`„${currentProduct.name}" hinzugefügt`);
+  // Reset
   document.getElementById('barcode-input').value='';
-  document.getElementById('qty-input').value='1';
+  document.getElementById('qty-input').value='0';
   currentProduct=null;
   const p=document.getElementById('preview');p.className='product-preview';
   p.innerHTML='<span class="hint">Barcode scannen → Produkt erscheint hier</span>';
@@ -587,7 +603,7 @@ function exportCSV(){
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='hofladen-produkte.csv';a.click();
 }
 
-const APP_VERSION='v1.4';
+const APP_VERSION='v1.5';
 function setProductCount(n){
   document.getElementById('db-count-header').innerHTML=
     `<div>${n} Produkte</div><div style="color:rgba(255,255,255,.35);font-size:10px">${APP_VERSION}</div>`;
