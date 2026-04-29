@@ -436,7 +436,16 @@ function onBarcodeInput(val){lookupBarcode(val.trim())}
 function onBarcodeKey(e){
   if(e.key==='Enter'){
     const v=document.getElementById('barcode-input').value.trim();
-    if(v){lookupBarcode(v);setTimeout(()=>document.getElementById('qty-input').select(),80)}
+    if(!v)return;
+    // Gleicher Barcode nochmals gescannt → Menge hochzählen
+    if(currentProduct && v===currentProduct.barcode){
+      adjustQty(+1);
+      document.getElementById('barcode-input').value='';
+    } else {
+      // Neuer Barcode → Produkt wechseln
+      lookupBarcode(v);
+      document.getElementById('barcode-input').value='';
+    }
     e.preventDefault();
   }
 }
@@ -576,7 +585,7 @@ function exportCSV(){
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='hofladen-produkte.csv';a.click();
 }
 
-const APP_VERSION='v1.2';
+const APP_VERSION='v1.3';
 function setProductCount(n){
   document.getElementById('db-count-header').innerHTML=
     `<div>${n} Produkte</div><div style="color:rgba(255,255,255,.35);font-size:10px">${APP_VERSION}</div>`;
