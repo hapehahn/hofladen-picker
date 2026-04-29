@@ -69,12 +69,13 @@
   .dot-ok{background:var(--odoo-teal)}.dot-err{background:#e07060}
 
   /* Qty */
-  .qty-row{display:flex;gap:8px;margin-top:10px;align-items:center}
-  .qty-btn{width:44px;height:44px;background:var(--surface2);border:1.5px solid var(--border2);border-radius:var(--radius);color:var(--text);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .1s;flex-shrink:0;font-weight:500}
-  .qty-btn:active{background:var(--border)}
-  .qty-field{flex:1;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--radius);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:500;padding:7px 12px;text-align:center;outline:none;transition:border-color .15s,box-shadow .15s}
-  .qty-field:focus{border-color:var(--odoo-teal);box-shadow:0 0 0 3px rgba(0,160,157,.12)}
-  .qty-label{font-size:13px;color:var(--muted);white-space:nowrap}
+  .qty-row{display:flex;gap:12px;margin-top:10px;align-items:center}
+  .qty-display{background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--radius);font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:600;color:var(--text);min-width:80px;padding:8px 12px;text-align:center;flex-shrink:0}
+  .numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;flex:1}
+  .np-btn{background:var(--surface);border:1.5px solid var(--border2);border-radius:var(--radius);font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:500;color:var(--text);padding:10px 0;cursor:pointer;transition:background .1s;-webkit-tap-highlight-color:transparent;user-select:none}
+  .np-btn:active{background:var(--border)}
+  .np-clear{color:var(--danger);border-color:#e07060}
+  .np-del{color:var(--odoo-purple)}
 
   .add-btn{width:100%;margin-top:10px;padding:12px;background:var(--odoo-purple);color:#fff;border:none;border-radius:var(--radius);font-family:'IBM Plex Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .15s,transform .1s}
   .add-btn:active{opacity:.88;transform:scale(.99)}
@@ -218,14 +219,27 @@
     <div class="product-preview" id="preview">
       <span class="hint">Barcode scannen → Produkt erscheint hier</span>
     </div>
+
+    <!-- Mengeneingabe mit eigenem Nummernblock -->
     <div class="qty-row">
-      <button class="qty-btn" onclick="adjustQty(-1)">−</button>
-      <input id="qty-input" class="qty-field" type="text" inputmode="decimal"
-             value="0" pattern="[0-9]*" autocomplete="off"
-             onkeydown="onQtyKey(event)">
-      <span class="qty-label">Stk.</span>
-      <button class="qty-btn" onclick="adjustQty(+1)">+</button>
+      <div class="qty-display" id="qty-display">0</div>
+      <div class="numpad">
+        <button class="np-btn" onclick="npPress('1')">1</button>
+        <button class="np-btn" onclick="npPress('2')">2</button>
+        <button class="np-btn" onclick="npPress('3')">3</button>
+        <button class="np-btn" onclick="npPress('4')">4</button>
+        <button class="np-btn" onclick="npPress('5')">5</button>
+        <button class="np-btn" onclick="npPress('6')">6</button>
+        <button class="np-btn" onclick="npPress('7')">7</button>
+        <button class="np-btn" onclick="npPress('8')">8</button>
+        <button class="np-btn" onclick="npPress('9')">9</button>
+        <button class="np-btn np-clear" onclick="npClear()">C</button>
+        <button class="np-btn" onclick="npPress('0')">0</button>
+        <button class="np-btn np-del" onclick="npBackspace()">⌫</button>
+      </div>
     </div>
+    <!-- verstecktes Feld für JS-Kompatibilität -->
+    <input id="qty-input" type="hidden" value="0">
     <button class="add-btn" id="add-btn" onclick="addItem()" disabled>+ Zur Packliste hinzufügen</button>
   </div>
   <div class="list-area" id="scan-list-area">
@@ -413,7 +427,7 @@ function onCameraScan(code){
   document.getElementById('barcode-input').value=code;
   lookupBarcode(code);
   stopCamera();
-  setTimeout(()=>{document.getElementById('qty-input').select();scanCooldown=false;},400);
+  setTimeout(()=>{scanCooldown=false;},400);
 }
 
 function stopCamera(){
@@ -451,12 +465,12 @@ function onBarcodeKey(e){
       // Neuer Barcode → aktuellen Artikel erst in Packliste schreiben
       if(currentProduct){
         // Menge sichern bevor addItem sie zurücksetzt
-        const qty=Math.max(1,parseInt(document.getElementById('qty-input').value)||1);
+        const qty=Math.max(1,getQty());
         addItemDirect(currentProduct, qty);
       }
       // Neues Produkt laden, Menge auf 1
       lookupBarcode(v);
-      document.getElementById('qty-input').value='1';
+      setQty(1);
     }
     e.preventDefault();
   }
@@ -489,18 +503,34 @@ function lookupBarcode(code){
   document.getElementById('add-btn').disabled=false;
 }
 
-function onQtyKey(e){if(e.key==='Enter'){addItem();e.preventDefault()}}
-function adjustQty(d){const f=document.getElementById('qty-input');f.value=Math.max(1,(parseInt(f.value)||1)+d)}
+function onQtyKey(e){}  // nicht mehr benötigt
+function getQty(){return parseInt(document.getElementById('qty-input').value)||0}
+function setQty(n){
+  const v=Math.max(0,n);
+  document.getElementById('qty-input').value=v;
+  document.getElementById('qty-display').textContent=v||'0';
+}
+function adjustQty(d){setQty(getQty()+d)}
+function npPress(digit){
+  const cur=document.getElementById('qty-input').value;
+  const next=cur==='0'?digit:cur+digit;
+  setQty(parseInt(next)||0);
+}
+function npClear(){setQty(0)}
+function npBackspace(){
+  const cur=String(document.getElementById('qty-input').value);
+  setQty(cur.length<=1?0:parseInt(cur.slice(0,-1))||0);
+}
 
 // ══ ARTIKEL HINZUFÜGEN (manueller Button) ══
 function addItem(){
   if(!currentProduct)return;
-  const qty=Math.max(1,parseInt(document.getElementById('qty-input').value)||1);
+  const qty=Math.max(1,getQty());
   addItemDirect(currentProduct, qty);
   toast(`„${currentProduct.name}" hinzugefügt`);
   // Reset
   document.getElementById('barcode-input').value='';
-  document.getElementById('qty-input').value='0';
+  setQty(0);
   currentProduct=null;
   const p=document.getElementById('preview');p.className='product-preview';
   p.innerHTML='<span class="hint">Barcode scannen → Produkt erscheint hier</span>';
@@ -618,7 +648,7 @@ function exportCSV(){
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='hofladen-produkte.csv';a.click();
 }
 
-const APP_VERSION='v1.7';
+const APP_VERSION='v1.8';
 function setProductCount(n){
   document.getElementById('db-count-header').innerHTML=
     `<div>${n} Produkte</div><div style="color:rgba(255,255,255,.35);font-size:10px">${APP_VERSION}</div>`;
