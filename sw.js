@@ -1,7 +1,7 @@
 // Hofladen-Picker – Offline-Unterstützung
 // Eigene Dateien: erst Netz (damit Updates sofort ankommen), ohne Netz aus dem Speicher.
 // Fremde Dateien (Schriften, Barcode-Erkennung): aus dem Speicher, sonst Netz.
-const CACHE = 'hofladen-v3.4';
+const CACHE = 'hofladen-v3.4.1';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './barcode-polyfill.js', './produkte.csv', './anleitung.pdf'];
 
 self.addEventListener('install', e => {

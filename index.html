@@ -211,6 +211,11 @@
   .pad-actions button{flex:1;padding:13px 6px;border-radius:8px;font-size:15px;cursor:pointer;border:1.5px solid var(--border2);background:var(--surface)}
   .pad-actions .p{flex:1.6;background:var(--purple);border-color:var(--purple);color:#fff;font-weight:600}
   .pad-actions .s{background:var(--surface2);font-weight:600;color:var(--purple)}
+  .link-btn{display:block;margin:14px auto 0;background:none;border:0;color:var(--danger);font-size:13.5px;font-weight:500;text-decoration:underline;cursor:pointer;padding:6px 10px}
+  .chip-wrap{display:inline-flex;align-items:stretch}
+  .chip-wrap .chip{border-top-right-radius:0;border-bottom-right-radius:0;border-right:0}
+  .chip-x{border:1.5px solid var(--border2);border-left:1px solid var(--border);border-radius:0 99px 99px 0;background:var(--surface);color:var(--muted);font-size:12px;padding:0 9px;cursor:pointer}
+  .chip-x:active{color:var(--danger)}
   .recent-areas{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
   .sheet-results{overflow-y:auto;margin-top:10px;flex:1;min-height:0}
 
@@ -503,6 +508,7 @@
       <button class="p" data-act="saveSetup">✓ Los geht's</button>
       <button data-act="closeSetup" id="setup-cancel">Abbrechen</button>
     </div>
+    <button class="link-btn" data-act="resetSetup" id="setup-reset" hidden>Bereich und Name löschen</button>
   </div>
 </div>
 
@@ -519,7 +525,7 @@
 
 <script>
 'use strict';
-const APP_VERSION='v3.4';
+const APP_VERSION='v3.4.1';
 const CSV_URL='produkte.csv';
 const $=id=>document.getElementById(id);
 
@@ -1011,11 +1017,27 @@ function invNote(id){
 
 function openSetup(force){
   $('setup-area').value=settings.area||'';$('setup-who').value=settings.who||'';
-  const areas=[...new Set([...(settings.recentAreas||[]),...inv.map(e=>e.area)])].filter(Boolean).slice(0,12);
-  $('setup-recent').innerHTML=areas.map(a=>`<button class="chip ${a===settings.area?'area':''}" data-act="pickArea" data-a="${esc(a)}"><b>${esc(a)}</b></button>`).join('');
+  renderAreaChips();
+  $('setup-reset').hidden=!(settings.area||settings.who);
   $('setup-cancel').hidden=false;
   $('setup').hidden=false;
   setTimeout(()=>{(!settings.area||!force?$('setup-area'):$('setup-who')).focus()},80);
+}
+function renderAreaChips(){
+  const used=new Set(inv.map(e=>e.area));
+  const areas=[...new Set([...(settings.recentAreas||[]),...used])].filter(Boolean).slice(0,12);
+  $('setup-recent').innerHTML=areas.map(a=>{
+    const chip=`<button class="chip ${a===$('setup-area').value?'area':''}" data-act="pickArea" data-a="${esc(a)}"><b>${esc(a)}</b></button>`;
+    // Bereiche ohne Zählungen lassen sich aus der Liste entfernen
+    return used.has(a)?chip:`<span class="chip-wrap">${chip}<button class="chip-x" data-act="dropArea" data-a="${esc(a)}" aria-label="${esc(a)} aus der Liste entfernen">✕</button></span>`;
+  }).join('');
+}
+function resetSetup(){
+  const n=inv.length;
+  settings.area='';settings.who='';saveSettings();
+  invCurrentId=null;$('setup').hidden=true;document.activeElement?.blur?.();
+  renderInv();showTab('scan');
+  toast(n?'Bereich und Name gelöscht – bisherige Zählungen bleiben erhalten':'Bereich und Name gelöscht');
 }
 function closeSetup(){if($('setup').hidden)return;$('setup').hidden=true;document.activeElement?.blur?.();if(tab==='inv'&&(!settings.who||!settings.area))showTab('scan');else focusScan()}
 function saveSetup(){
@@ -1317,6 +1339,7 @@ const actions={
   exportPack, printPack,
   clearPack:()=>{if(packItems.length&&confirm('Packliste wirklich leeren?')){packItems=[];packCurrent=null;savePack();renderPackList()}},
   setup:()=>openSetup(false), closeSetup, saveSetup,
+  resetSetup, dropArea:d=>{settings.recentAreas=(settings.recentAreas||[]).filter(x=>x!==d.a);if(settings.area===d.a&&!inv.some(e=>e.area===d.a)){settings.area='';if($('setup-area').value===d.a)$('setup-area').value=''}saveSettings();renderAreaChips()},
   pickArea:d=>{$('setup-area').value=d.a;$('setup-recent').querySelectorAll('.chip').forEach(c=>c.classList.toggle('area',c.dataset.a===d.a));if(!$('setup-who').value)$('setup-who').focus()},
   invPick:d=>invPick(d.key), invEdit:d=>invEdit(d.id), invDel:d=>invDel(d.id), invNote:d=>invNote(d.id),
   invAdj:d=>invAdj(Number(d.d)), invZero:d=>invZero(d.key),
