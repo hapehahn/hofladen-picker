@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Hofladen">
 <meta name="theme-color" content="#714B67">
 <link rel="manifest" href="manifest.webmanifest">
@@ -31,7 +31,7 @@
   #app{display:flex;flex-direction:column;height:100dvh;max-width:var(--app-w);margin:0 auto;background:var(--bg)}
   .mono{font-family:'IBM Plex Mono',ui-monospace,monospace}
 
-  header{display:flex;align-items:center;padding:env(safe-area-inset-top,0) 16px 0;min-height:52px;background:var(--purple);gap:12px;flex-shrink:0}
+  header{display:flex;align-items:center;padding:env(safe-area-inset-top,0) 16px 0;min-height:calc(52px + env(safe-area-inset-top,0px));box-sizing:border-box;background:var(--purple);gap:12px;flex-shrink:0}
   .logo-chip{display:flex;align-items:center;background:#fff;border-radius:8px;padding:6px 10px;flex-shrink:0}
   .logo-chip svg{display:block;width:auto}
   .help-btn{width:32px;height:32px;border-radius:50%;border:1.5px solid rgba(255,255,255,.55);color:#fff;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;text-decoration:none;flex-shrink:0}
@@ -43,6 +43,8 @@
 
   #sync-status{text-align:center;font-size:11px;padding:4px 16px;background:var(--surface2);border-bottom:1px solid var(--border);color:var(--muted);flex-shrink:0}
   .banner{display:flex;gap:10px;align-items:center;padding:8px 12px;background:var(--warn-bg);border-bottom:1px solid #f0dcb4;font-size:12px;color:#7a5410;flex-shrink:0}
+  .banner.update{background:var(--teal-bg);border-bottom-color:#b5e3e1;color:#0b5c5a}
+  .banner.update button{border-color:var(--teal);color:#0b5c5a;font-weight:600}
   .banner span{flex:1;line-height:1.4}
   .banner button{border:1px solid #e3c88f;background:#fff;border-radius:6px;padding:5px 9px;font-size:12px;cursor:pointer}
 
@@ -268,6 +270,10 @@
   <div id="h-meta"></div>
 </header>
 <div id="sync-status">Produkte werden geladen…</div>
+<div class="banner update" id="update-banner" hidden>
+  <span id="update-text">Neue Version verfügbar.</span>
+  <button data-act="applyUpdate">Jetzt aktualisieren</button>
+</div>
 <div class="banner" id="install-banner" hidden>
   <span id="install-text"></span>
   <button id="install-btn" hidden>Installieren</button>
@@ -453,6 +459,7 @@
       <label class="check-line"><input type="checkbox" id="set-stock"> Buchbestand aus Odoo beim Zählen anzeigen (aus produkte.csv, Spalte „Vorrätige Menge“). Aus = Blindzählung.</label>
       <label class="check-line"><input type="checkbox" id="set-sound"> Töne beim Scannen (bekannt / unbekannt)</label>
       <label class="check-line"><input type="checkbox" id="set-wake"> Bildschirm bleibt an, solange die App offen ist</label>
+      <button class="btn sec" data-act="checkUpdateNow" style="margin-top:12px">⟳ Auf neue Version prüfen</button>
       <p style="margin-top:10px;margin-bottom:0"><a href="anleitung.pdf" target="_blank" rel="noopener" style="color:var(--purple);font-weight:600">📄 Kurzanleitung Inventur (PDF)</a></p>
       <p id="device-info" style="margin-top:10px;margin-bottom:0"></p>
     </div>
@@ -525,7 +532,7 @@
 
 <script>
 'use strict';
-const APP_VERSION='v3.4.1';
+const APP_VERSION='v3.5.1';
 const CSV_URL='produkte.csv';
 const $=id=>document.getElementById(id);
 
@@ -1339,6 +1346,7 @@ const actions={
   exportPack, printPack,
   clearPack:()=>{if(packItems.length&&confirm('Packliste wirklich leeren?')){packItems=[];packCurrent=null;savePack();renderPackList()}},
   setup:()=>openSetup(false), closeSetup, saveSetup,
+  applyUpdate, checkUpdateNow:()=>checkUpdate(true),
   resetSetup, dropArea:d=>{settings.recentAreas=(settings.recentAreas||[]).filter(x=>x!==d.a);if(settings.area===d.a&&!inv.some(e=>e.area===d.a)){settings.area='';if($('setup-area').value===d.a)$('setup-area').value=''}saveSettings();renderAreaChips()},
   pickArea:d=>{$('setup-area').value=d.a;$('setup-recent').querySelectorAll('.chip').forEach(c=>c.classList.toggle('area',c.dataset.a===d.a));if(!$('setup-who').value)$('setup-who').focus()},
   invPick:d=>invPick(d.key), invEdit:d=>invEdit(d.id), invDel:d=>invDel(d.id), invNote:d=>invNote(d.id),
@@ -1400,6 +1408,28 @@ if('serviceWorker' in navigator&&location.protocol==='https:'){
 if(navigator.storage&&navigator.storage.persist){
   navigator.storage.persisted().then(p=>p?true:navigator.storage.persist()).then(p=>{window.__persisted=!!p}).catch(()=>{});
 }
+
+// ═══════════ UPDATES ═══════════
+// iOS setzt Home-Bildschirm-Apps oft nur fort, statt sie neu zu laden. Darum fragt die App selbst nach.
+let updateChecking=false;
+async function checkUpdate(manual){
+  if(updateChecking||!navigator.onLine){if(manual)toast('Keine Verbindung – später nochmal versuchen');return}
+  updateChecking=true;
+  try{
+    const r=await fetch('index.html?v='+Date.now(),{cache:'no-store'});
+    const m=(await r.text()).match(/APP_VERSION='([^']+)'/);
+    if(m&&m[1]!==APP_VERSION){$('update-text').textContent=`Neue Version ${m[1]} verfügbar (installiert: ${APP_VERSION}).`;$('update-banner').hidden=false}
+    else if(manual)toast('Die App ist aktuell ('+APP_VERSION+')');
+  }catch(e){if(manual)toast('Prüfen nicht möglich',{err:true})}
+  updateChecking=false;
+}
+async function applyUpdate(){
+  $('update-text').textContent='Wird aktualisiert …';
+  try{const reg=await navigator.serviceWorker?.getRegistration();if(reg)await reg.update()}catch(e){}
+  location.reload();
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate(false)});
+setTimeout(()=>checkUpdate(false),3000);
 
 // ═══════════ START ═══════════
 load();

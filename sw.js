@@ -1,7 +1,7 @@
 // Hofladen-Picker – Offline-Unterstützung
 // Eigene Dateien: erst Netz (damit Updates sofort ankommen), ohne Netz aus dem Speicher.
 // Fremde Dateien (Schriften, Barcode-Erkennung): aus dem Speicher, sonst Netz.
-const CACHE = 'hofladen-v3.4.1';
+const CACHE = 'hofladen-v3.5.1';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './barcode-polyfill.js', './produkte.csv', './anleitung.pdf'];
 
 self.addEventListener('install', e => {
@@ -20,7 +20,8 @@ self.addEventListener('fetch', e => {
   if (url.origin === self.location.origin) {
     const key = url.origin + url.pathname;          // ?t=… beim CSV-Abruf ignorieren
     e.respondWith(
-      fetch(req).then(res => {
+      // no-cache: immer beim Server nachfragen (GitHub hält Seiten sonst bis zu 10 Min. zwischengespeichert)
+      fetch(new Request(url.href, { cache: 'no-cache', credentials: 'same-origin' })).then(res => {
         if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(key, copy)); }
         return res;
       }).catch(() =>
