@@ -186,7 +186,13 @@
   .sheet{background:var(--surface);width:100%;max-width:540px;border-radius:16px 16px 0 0;padding:18px 16px calc(18px + var(--sab));max-height:94dvh;overflow:auto;box-shadow:0 -4px 24px rgba(44,36,56,.18)}
   .overlay.top .sheet{border-radius:0 0 16px 16px;padding-top:calc(14px + env(safe-area-inset-top,0px));max-height:80dvh;display:flex;flex-direction:column}
   .sheet-title{font-size:15px;font-weight:700;margin-bottom:4px;text-align:center}
-  .sheet-sub{font-size:12.5px;color:var(--text2);text-align:center;margin-bottom:10px;min-height:16px}
+  .sheet-sub{font-size:12.5px;color:var(--text2);text-align:center;margin-bottom:10px;min-height:16px;white-space:pre-line;line-height:1.5}
+  .fill-btn{width:100%;margin:-4px 0 12px;padding:12px;border-radius:8px;border:1.5px solid var(--teal);background:var(--teal-bg);color:#00706e;font-size:15px;font-weight:600;cursor:pointer}
+  .fill-btn:active{background:#d6f0ee}
+  .stock-line{font-size:12px;color:var(--text2);margin-top:4px}
+  .stock-line b.ok{color:var(--teal)}.stock-line b.neg{color:var(--warn)}.stock-line b.pos{color:var(--danger)}
+  .stock-stamp{font-size:11px;color:var(--muted);margin-top:6px}
+  .stock-stamp.old{color:var(--warn)}
   .pad-display{font-family:'IBM Plex Mono',monospace;font-size:40px;font-weight:700;color:var(--purple);text-align:center;margin:4px 0 12px;min-height:52px;display:flex;align-items:center;justify-content:center;gap:6px;word-break:break-all}
   .pad-display.bc{font-size:26px}
   .pad-display .ph{color:var(--border2)}
@@ -306,6 +312,7 @@
       <button class="chip" data-act="setup">👤 <b id="inv-who">–</b></button>
       <div class="inv-progress" id="inv-progress"></div>
     </div>
+    <div class="stock-stamp" id="stock-stamp" hidden></div>
     <div class="seg" id="inv-seg">
       <button data-seg="count" class="on">Zählen</button>
       <button data-seg="list">Liste <span id="seg-list-n"></span></button>
@@ -347,6 +354,7 @@
     <div class="search-wrap" style="margin-bottom:2px">
       <input id="open-q" class="search" type="search" placeholder="Offene Produkte filtern …" autocomplete="off" spellcheck="false">
     </div>
+    <label class="check-line" id="open-nz-wrap" style="margin:6px 16px 0" hidden><input type="checkbox" id="open-nz"> Nur Produkte mit Buchbestand ≠ 0</label>
     <div class="scroll" id="open-list"></div>
   </div>
 
@@ -370,13 +378,16 @@
       </div>
       <div class="box">
         <div class="box-title">2 · Ergebnis für Odoo exportieren</div>
-        <p>Eine Zeile je Produkt, Mengen aus allen Bereichen und Geräten addiert. In Odoo unter <i>Lager → Vorgänge → Inventur</i> importieren und die Spalten zuordnen.</p>
-        <label class="check-line"><input type="checkbox" id="zero-open"> Nicht gezählte Produkte mit Menge 0 aufnehmen (nur bei Vollaufnahme und wenn die Produktliste nur lagergeführte Produkte enthält)</label>
-        <button class="btn" data-act="exportOdoo">⬇ Odoo-Datei exportieren</button>
+        <p>Eine Zeile je Produkt, Mengen aus allen Bereichen und Geräten addiert, alles auf den Lagerort <b id="odoo-loc-label">WH/Bestand</b>. Nur bestandsgeführte Produkte. In Odoo: <i>Lager → Vorgänge → Bestandsaufnahme → ⚙ → Datensätze importieren</i>.</p>
+        <label class="check-line"><input type="checkbox" id="zero-open" checked> Nicht gezählte bestandsgeführte Produkte mit Menge 0 aufnehmen (Vollaufnahme – setzt z. B. negative Bestände auf 0)</label>
+        <div class="label" style="margin-top:10px">Buchungsdatum / Stichtag (optional)</div>
+        <input type="date" class="field" id="acc-date">
+        <button class="btn" data-act="exportOdoo">⬇ Odoo-Importdatei</button>
         <div class="btn-row">
-          <button class="btn sec" data-act="exportOpen">Offene Produkte (CSV)</button>
-          <button class="btn sec" data-act="printInv">🖨 Zählliste drucken</button>
+          <button class="btn sec" data-act="exportSummary">Summenliste (Excel)</button>
+          <button class="btn sec" data-act="exportOpen">Offene Produkte</button>
         </div>
+        <button class="btn sec" data-act="printInv">🖨 Zählliste drucken</button>
       </div>
       <div class="box">
         <div class="box-title">3 · Inventur beenden</div>
@@ -417,14 +428,18 @@
     </div>
     <div class="box">
       <div class="box-title">CSV-Datei einlesen (nur dieses Gerät)</div>
-      <p>Spalten mit Kopfzeile, getrennt durch Semikolon: <code>Barcode;Name;Einheit</code>, optional <code>Interne Referenz;Produktkategorie</code>. Produkte ohne Barcode werden übernommen.</p>
+      <p>Spalten mit Kopfzeile, getrennt durch Semikolon: <code>Barcode;Name;Einheit</code>, optional <code>Interne Referenz;Produktkategorie;Bestand verfolgen;Vorrätige Menge</code>. Produkte ohne Barcode werden übernommen.</p>
       <div class="btn-row"><button class="btn sec" data-act="pickProductFile">Datei wählen …</button></div>
       <input type="file" id="prod-file" accept=".csv,text/csv,text/plain" hidden>
       <div class="status-line" id="import-status"></div>
     </div>
     <div class="box">
       <div class="box-title">Einstellungen</div>
-      <div class="field-row"><input class="field" id="set-who" placeholder="Name des Zählers" autocomplete="off"></div>
+      <div class="label">Name des Zählers</div>
+      <div class="field-row"><input class="field" id="set-who" placeholder="Name" autocomplete="off"></div>
+      <div class="label" style="margin-top:10px">Odoo-Lagerort für die Inventur</div>
+      <div class="field-row"><input class="field mono" id="set-loc" placeholder="WH/Bestand" autocomplete="off"></div>
+      <label class="check-line"><input type="checkbox" id="set-stock"> Buchbestand aus Odoo beim Zählen anzeigen (aus produkte.csv, Spalte „Vorrätige Menge“). Aus = Blindzählung.</label>
       <label class="check-line"><input type="checkbox" id="set-sound"> Töne beim Scannen (bekannt / unbekannt)</label>
       <label class="check-line"><input type="checkbox" id="set-wake"> Bildschirm bleibt an, solange die App offen ist</label>
       <p id="device-info" style="margin-top:10px;margin-bottom:0"></p>
@@ -440,6 +455,7 @@
     <div class="sheet-title" id="pad-title"></div>
     <div class="sheet-sub" id="pad-sub"></div>
     <div class="pad-display" id="pad-display"></div>
+    <button class="fill-btn" data-pad="fill" id="pad-fill" hidden></button>
     <div class="pad-grid">
       <button class="np" data-pad="1">1</button><button class="np" data-pad="2">2</button><button class="np" data-pad="3">3</button>
       <button class="np" data-pad="4">4</button><button class="np" data-pad="5">5</button><button class="np" data-pad="6">6</button>
@@ -496,13 +512,13 @@
 
 <script>
 'use strict';
-const APP_VERSION='v3.0';
+const APP_VERSION='v3.2.1';
 const CSV_URL='produkte.csv';
 const $=id=>document.getElementById(id);
 
 // ═══════════ STATE ═══════════
 let products={};          // key -> {bc,name,unit,ref,cat,manual}
-let idx={bc:{},ref:{},name:{},sorted:[],text:{}};
+let idx={bc:{},ref:{},name:{},sorted:[],inv:[],text:{}};
 let packItems=[];         // {key,bc,name,unit,qty,done,unk}
 let inv=[];               // {id,key,bc,ref,name,unit,qty,area,who,dev,t,note,unk}
 let settings={};
@@ -543,7 +559,7 @@ function getCookie(n){const m=document.cookie.match('(?:^|; )'+n+'=([^;]*)');ret
 function readJSON(k,fb){try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb}catch(e){return fb}}
 
 function load(){
-  settings=Object.assign({who:'',area:'',recentAreas:[],sound:true,wake:true,askQty:false,device:''},readJSON('hfl3_settings',{}));
+  settings=Object.assign({who:'',area:'',recentAreas:[],sound:true,wake:true,askQty:false,device:'',odooLoc:'WH/Bestand',showStock:true,stockAt:0,accDate:''},readJSON('hfl3_settings',{}));
   if(!settings.device){settings.device='G'+Math.random().toString(36).slice(2,6).toUpperCase()}
   products=readJSON('hfl3_products',null);
   packItems=readJSON('hfl3_pack',null);
@@ -572,7 +588,7 @@ function load(){
 
 // ═══════════ PRODUKTE ═══════════
 function rebuildIndex(){
-  idx={bc:{},ref:{},name:{},sorted:[],text:{}};
+  idx={bc:{},ref:{},name:{},sorted:[],inv:[],text:{}};
   for(const [k,p] of Object.entries(products)){
     if(p.bc)idx.bc[p.bc]=k;
     if(p.ref)idx.ref[norm(p.ref)]=k;
@@ -580,6 +596,7 @@ function rebuildIndex(){
     idx.text[k]=norm([p.name,p.bc,p.ref,p.cat].join(' '));
   }
   idx.sorted=Object.keys(products).sort((a,b)=>products[a].name.localeCompare(products[b].name,'de'));
+  idx.inv=idx.sorted.filter(k=>products[k].track!==false);   // Inventur: nur bestandsgeführte Produkte
   renderHeader();
 }
 function findByCode(code){
@@ -609,24 +626,28 @@ function parseCSV(text){
   if(f!==''||row.length){row.push(f.trim());rows.push(row)}
   return rows.filter(r=>r.some(x=>x!==''));
 }
-const PROD_HDR=[['cat',['kategorie','category']],['ref',['referenz','default_code','artikelnummer','artikel-nr']],['unit',['einheit','uom']],['bc',['barcode','ean','gtin']],['name',['name','produkt','bezeichnung','artikel']]];
+const PROD_HDR=[['track',['verfolg','storable','track','bestandsgefuhrt','lagerfuhrung']],['stock',['vorratig','qty_available','on hand','onhand','lagerbestand','buchbestand']],['cat',['kategorie','category','categ']],['ref',['referenz','default_code','artikelnummer','artikel-nr']],['unit',['einheit','uom']],['bc',['barcode','ean','gtin']],['name',['name','produkt','bezeichnung','artikel']]];
 function mapHeader(row,spec){
   const m={};
   row.forEach((c,i)=>{const n=norm(c);for(const [k,keys] of spec){if(m[k]===undefined&&keys.some(x=>n.includes(x))){m[k]=i;return}}});
   return m;
 }
+function parseBool(v){v=norm(v).trim();return !['','false','falsch','nein','no','0','n','-'].includes(v)}
 function rowsToProducts(rows){
   if(!rows.length)return {list:[],dup:0};
   let m=mapHeader(rows[0],PROD_HDR),start=1;
   if(m.name===undefined||(m.bc===undefined&&m.unit===undefined&&m.ref===undefined)){m={bc:0,name:1,unit:2,ref:3,cat:4};start=0}
   const list=[];const seen=new Set();let dup=0;
   for(let r=start;r<rows.length;r++){
-    const row=rows[r];const g=k=>m[k]!==undefined?(row[m[k]]||'').trim():'';
+    const row=rows[r];const g0=k=>m[k]!==undefined?(row[m[k]]||'').trim():'';const g=k=>{const v=g0(k);return(k!=='track'&&k!=='stock'&&v==='False')?'':v};  // leere Odoo-Felder kommen teils als "False"
     const name=g('name');if(!name)continue;
+    const track=m.track!==undefined?parseBool(g('track')):undefined;
     const bc=g('bc').replace(/\s/g,''),ref=g('ref'),unit=g('unit'),cat=g('cat');
     const key=productKey(bc,ref,name);
     if(seen.has(key))dup++;seen.add(key);
-    list.push([key,{bc,name,unit,ref,cat}]);
+    const obj={bc,name,unit,ref,cat};if(track!==undefined)obj.track=track;
+    if(m.stock!==undefined){const st=parseNum(g('stock'));if(!isNaN(st))obj.stock=round(st)}
+    list.push([key,obj]);
   }
   return {list,dup};
 }
@@ -643,7 +664,10 @@ async function loadCSV(manual){
     for(const [k,p] of Object.entries(products))if(p.manual&&!next[k])next[k]=p;   // eigene Produkte behalten
     products=next;rebuildIndex();save();
     const noBc=list.filter(([,p])=>!p.bc).length;
-    productSource=`${list.length} Produkte aus produkte.csv${noBc?`, davon ${noBc} ohne Barcode`:''} · geladen ${fmtTime(Date.now())}`;
+    const hasTrack=list.some(([,p])=>p.track!==undefined);
+    const hasStock=list.some(([,p])=>p.stock!==undefined);
+    settings.stockAt=hasStock?(Date.parse(res.headers.get('last-modified')||'')||Date.now()):0;saveSettings();
+    productSource=`${list.length} Produkte aus produkte.csv${noBc?`, davon ${noBc} ohne Barcode`:''}${hasTrack?` · ${idx.inv.length} bestandsgeführt (nur diese zählen für die Inventur)`:' · Spalte „Bestand verfolgen“ fehlt – alle Produkte zählen für die Inventur'}${hasStock?` · Buchbestand Stand ${fmtTime(settings.stockAt)}`:''} · geladen ${fmtTime(Date.now())}`;
     st.textContent=(navigator.onLine?'✓ ':'Offline · ')+list.length+' Produkte geladen';st.style.color='var(--teal)';
     if(manual)toast('Produkte neu geladen');
     setTimeout(()=>{st.hidden=true},3500);
@@ -699,8 +723,8 @@ function toast(msg,opt={}){
 }
 
 // ═══════════ DATEI EXPORT (Teilen auf Handy, Download am PC) ═══════════
-async function exportFile(name,text){
-  const blob=new Blob(['﻿'+text],{type:'text/csv;charset=utf-8'});
+async function exportFile(name,text,opt={}){
+  const blob=new Blob([(opt.bom===false?'':'\uFEFF')+text],{type:'text/csv;charset=utf-8'});
   if(coarse()&&navigator.canShare){
     try{
       const file=new File([blob],name,{type:'text/csv'});
@@ -742,6 +766,7 @@ function showPad(o){
   $('pad-sub').textContent=pad.sub||'';
   $('pad-ok').textContent=pad.okLabel||'✓ Übernehmen';
   $('pad-sec').hidden=!pad.onSec;$('pad-sec').textContent=pad.secLabel||'';
+  $('pad-fill').hidden=!pad.fill;if(pad.fill)$('pad-fill').textContent=pad.fill.label;
   $('pad-comma').textContent=pad.decimals?',':'';$('pad-comma').disabled=!pad.decimals;
   $('pad-display').classList.toggle('bc',pad.mode==='barcode');
   renderPad();$('pad').hidden=false;
@@ -761,6 +786,7 @@ function padKey(k){
   }else return;
   pad.value=v;renderPad();
 }
+function padFill(){if(!pad||!pad.fill)return;const p=pad;closePad();p.onOk(p.fill.value)}
 function closePad(){$('pad').hidden=true;pad=null;focusScan()}
 function padSubmit(which){
   if(!pad)return;const p=pad;const v=p.value;
@@ -920,6 +946,9 @@ function renderSheetResults(){
 }
 
 // ═══════════ INVENTUR ═══════════
+const hasStockData=()=>!!settings.showStock&&settings.stockAt>0;
+function bookOf(p){return hasStockData()&&p&&p.stock!==undefined?p.stock:null}
+function countedAll(k){return round(inv.filter(e=>e.key===k).reduce((s,e)=>s+e.qty,0))}
 function ensureSetup(){if(!settings.who||!settings.area){openSetup(true);return false}return true}
 function invEntryFor(key){return inv.find(e=>e.key===key&&e.area===settings.area&&e.dev===settings.device)}
 function newEntry(key,p,code,qty){
@@ -930,6 +959,7 @@ function invScan(code){
   const key=findByCode(code);const p=key?products[key]:null;const k=key||('bc:'+code);
   beep(!!p);
   if(!p)toast('Unbekannter Barcode – bitte Notiz ergänzen',{err:true});
+  else if(p.track===false)toast(`„${p.name}“ ist in Odoo nicht bestandsgeführt`,{err:true});
   if(settings.askQty){invCount(k,p,code);return}
   let e=invEntryFor(k);
   if(e){e.qty=round(e.qty+1);e.t=Date.now()}else{e=newEntry(k,p,code,1);inv.push(e)}
@@ -941,12 +971,20 @@ function invCount(k,p,code){
   const e=invEntryFor(k);const name=p?p.name:'Unbekannt ('+code+')';const unit=p?p.unit:'';
   const add=n=>{let x=invEntryFor(k);if(x){x.qty=round(x.qty+n);x.t=Date.now()}else{x=newEntry(k,p,code,n);inv.push(x)}invCurrentId=x.id;saveInv();renderInv();if(!p&&!x.note)setTimeout(()=>invNote(x.id),300)};
   const set=n=>{const x=invEntryFor(k);x.qty=n;x.t=Date.now();invCurrentId=x.id;saveInv();renderInv()};
-  showPad({title:name,sub:`📍 ${settings.area}`+(e?` · bisher gezählt: ${fmt(e.qty)} ${unit}`:''),unit,allowZero:true,
+  let sub=`📍 ${settings.area}`+(e?` · hier bisher ${fmt(e.qty)} ${unit}`:'');let fill=null;
+  const book=bookOf(p);
+  if(book!==null){
+    const all=countedAll(k);const rest=round(book-all);
+    sub+=`\nBuchbestand Odoo: ${fmt(book)} ${unit}`+(all?` · schon gezählt: ${fmt(all)}`:'');
+    if(rest>0)fill={label:all?`✓ Rest bestätigen: ${fmt(rest)} ${unit}`:`✓ Buchbestand bestätigen: ${fmt(book)} ${unit}`,value:rest};
+  }
+  showPad({title:name,sub,unit,allowZero:true,fill,
     okLabel:e?'+ Dazuzählen':'✓ Übernehmen',onOk:add,secLabel:e?'= Ersetzen':'',onSec:e?set:null});
 }
 function invEdit(id){
   const e=inv.find(x=>x.id===id);if(!e)return;
-  showPad({title:e.name,sub:`📍 ${e.area} · ${e.who||''} · aktuell ${fmt(e.qty)} ${e.unit||''}`,unit:e.unit,allowZero:true,placeholder:fmt(e.qty),okLabel:'✓ Korrigieren',
+  const bk=bookOf(products[e.key]);
+  showPad({title:e.name,sub:`📍 ${e.area} · ${e.who||''} · aktuell ${fmt(e.qty)} ${e.unit||''}`+(bk!==null?`\nBuchbestand Odoo: ${fmt(bk)} · gezählt gesamt: ${fmt(countedAll(e.key))}`:''),unit:e.unit,allowZero:true,placeholder:fmt(e.qty),okLabel:'✓ Korrigieren',
     onOk:n=>{e.qty=n;e.t=Date.now();saveInv();renderInv()}});
 }
 function invAdj(d){const e=inv.find(x=>x.id===invCurrentId);if(!e)return;e.qty=Math.max(0,round(e.qty+d));e.t=Date.now();saveInv();renderInv()}
@@ -991,11 +1029,13 @@ function setSeg(s){
 function countedKeys(){return new Set(inv.map(e=>e.key))}
 function renderInv(){
   $('inv-area').textContent=settings.area||'Bereich wählen';$('inv-who').textContent=settings.who||'Name';
-  const ck=countedKeys();const total=idx.sorted.length;const counted=idx.sorted.filter(k=>ck.has(k)).length;
+  const ck=countedKeys();const total=idx.inv.length;const counted=idx.inv.filter(k=>ck.has(k)).length;
   $('inv-progress').innerHTML=`<b>${counted}</b> / ${total} gezählt`;
   $('seg-list-n').textContent=inv.length?`(${inv.length})`:'';
   $('seg-open-n').textContent=total?`(${total-counted})`:'';
   $('ask-qty').checked=!!settings.askQty;
+  const ss=$('stock-stamp');ss.hidden=!hasStockData();
+  if(hasStockData()){const old=Date.now()-settings.stockAt>12*3600e3;ss.className='stock-stamp'+(old?' old':'');ss.textContent=`Buchbestand aus Odoo, Stand ${fmtTime(settings.stockAt)}`+(old?' – für die Inventur produkte.csv frisch exportieren':'')}
   updateBadges();
   if(seg==='count')renderCount();
   if(seg==='list')renderInvList();
@@ -1004,20 +1044,26 @@ function renderInv(){
 }
 function entryCard(e,opts={}){
   const meta=[e.bc||(e.ref?'Ref '+e.ref:''),opts.showArea?'📍'+e.area:'',e.who&&e.dev!==settings.device?'👤'+e.who:'',fmtTime(e.t).slice(11)].filter(Boolean).join(' · ');
-  return `<div class="card ${e.unk?'unknown':''} ${e.id===invCurrentId&&opts.cur?'current':''}"><div class="c-info"><div class="c-name">${esc(e.name)}</div><div class="c-meta">${esc(meta)}</div>${e.note?`<div class="c-note">✎ ${esc(e.note)}</div>`:''}</div><div><button class="qty-chip ${e.qty===0?'zero':''}" data-act="invEdit" data-id="${esc(e.id)}">${fmt(e.qty)}</button><div class="qty-unit">${esc(e.unit||'')}</div></div><button class="del-btn" data-act="invNote" data-id="${esc(e.id)}" title="Notiz">✎</button><button class="del-btn" data-act="invDel" data-id="${esc(e.id)}" title="Löschen">✕</button></div>`;
+  return `<div class="card ${e.unk?'unknown':''} ${e.id===invCurrentId&&opts.cur?'current':''}"><div class="c-info"><div class="c-name">${esc(e.name)}</div><div class="c-meta">${esc(meta)}</div>${e.note?`<div class="c-note">✎ ${esc(e.note)}</div>`:''}${products[e.key]&&products[e.key].track===false?'<div class="c-note">⚠ nicht bestandsgeführt – nicht in Odoo-Datei</div>':''}</div><div><button class="qty-chip ${e.qty===0?'zero':''}" data-act="invEdit" data-id="${esc(e.id)}">${fmt(e.qty)}</button><div class="qty-unit">${esc(e.unit||'')}</div></div><button class="del-btn" data-act="invNote" data-id="${esc(e.id)}" title="Notiz">✎</button><button class="del-btn" data-act="invDel" data-id="${esc(e.id)}" title="Löschen">✕</button></div>`;
+}
+function stockLine(k){
+  const book=bookOf(products[k]);if(book===null)return '';
+  const all=countedAll(k);const d=round(all-book);
+  const st=d===0?'<b class="ok">✓ stimmt</b>':(d<0?`<b class="neg">noch ${fmt(-d)} offen</b>`:`<b class="pos">+${fmt(d)} mehr</b>`);
+  return `<div class="stock-line">Buchbestand ${fmt(book)} · gezählt gesamt ${fmt(all)} · ${st}</div>`;
 }
 function renderCount(){
   const e=inv.find(x=>x.id===invCurrentId);const c=$('inv-cur');
   if(!e){c.className='cur';c.innerHTML='<span style="color:var(--muted);font-size:13px">Barcode scannen oder nach Namen suchen.</span>'}
   else{
     c.className='cur '+(e.unk?'unknown':'found');
-    c.innerHTML=`<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:15px">${esc(e.name)}</div><div class="c-meta">${esc(e.bc||'')}${e.unit?' · '+esc(e.unit):''}</div>${e.note?`<div class="c-note">✎ ${esc(e.note)}</div>`:''}</div><button class="qty-btn" data-act="invAdj" data-d="-1">−</button><div class="big" data-act="invEdit" data-id="${esc(e.id)}">${fmt(e.qty)}</div><button class="qty-btn" data-act="invAdj" data-d="1">+</button>`;
+    c.innerHTML=`<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:15px">${esc(e.name)}</div><div class="c-meta">${esc(e.bc||'')}${e.unit?' · '+esc(e.unit):''}</div>${e.note?`<div class="c-note">✎ ${esc(e.note)}</div>`:''}${stockLine(e.key)}</div><button class="qty-btn" data-act="invAdj" data-d="-1">−</button><div class="big" data-act="invEdit" data-id="${esc(e.id)}">${fmt(e.qty)}</div><button class="qty-btn" data-act="invAdj" data-d="1">+</button>`;
   }
   const q=$('inv-q').value;$('inv-q-clear').hidden=!q;const r=$('inv-results');
   if(q.trim()){
     const hits=searchProducts(q);const sums={};
     inv.forEach(x=>{if(x.area===settings.area)sums[x.key]=(sums[x.key]||0)+x.qty});
-    r.innerHTML=hits.length?`<div class="sec-label">${hits.length} Treffer · antippen zum Zählen</div>`+hits.map(k=>{const p=products[k];const s=sums[k];return `<div class="card tap" data-act="invPick" data-key="${esc(k)}"><div class="c-info"><div class="c-name">${esc(p.name)}</div><div class="c-meta">${esc(prodMeta(p))}</div></div>${s!==undefined?`<span class="badge">${fmt(s)}</span>`:'<span class="plus">+</span>'}</div>`}).join(''):'<div class="list-empty">Kein Produkt gefunden.<br>Prüfe die Schreibweise oder lege es unter ⚙ Produkte an.</div>';
+    r.innerHTML=hits.length?`<div class="sec-label">${hits.length} Treffer · antippen zum Zählen</div>`+hits.map(k=>{const p=products[k];const s=sums[k];return `<div class="card tap" data-act="invPick" data-key="${esc(k)}"${p.track===false?' style="opacity:.6"':''}><div class="c-info"><div class="c-name">${esc(p.name)}</div><div class="c-meta">${esc(prodMeta(p))}${bookOf(p)!==null?' · Buchbestand '+fmt(p.stock):''}${p.track===false?' · nicht bestandsgeführt':''}</div></div>${s!==undefined?`<span class="badge">${fmt(s)}</span>`:'<span class="plus">+</span>'}</div>`}).join(''):'<div class="list-empty">Kein Produkt gefunden.<br>Prüfe die Schreibweise oder lege es unter ⚙ Produkte an.</div>';
   }else{
     const mine=inv.filter(x=>x.area===settings.area).sort((a,b)=>b.t-a.t);
     r.innerHTML=mine.length?`<div class="sec-label">Gezählt in „${esc(settings.area)}" (${mine.length})</div>`+mine.slice(0,40).map(x=>entryCard(x,{cur:true})).join('')+(mine.length>40?`<div class="list-empty">… weitere unter „Liste"</div>`:''):'<div class="list-empty">In diesem Bereich ist noch nichts gezählt.</div>';
@@ -1040,18 +1086,19 @@ function renderInvList(){
 let openLimit=150;
 function renderOpen(){
   const ck=countedKeys();const q=$('open-q').value;const toks=norm(q).split(/\s+/).filter(Boolean);
-  let keys=idx.sorted.filter(k=>!ck.has(k)&&(!toks.length||toks.every(t=>idx.text[k].includes(t))));
+  $('open-nz-wrap').hidden=!hasStockData();const nz=hasStockData()&&$('open-nz').checked;
+  let keys=idx.inv.filter(k=>!ck.has(k)&&(!nz||(products[k].stock||0)!==0)&&(!toks.length||toks.every(t=>idx.text[k].includes(t))));
   const el=$('open-list');
-  if(!idx.sorted.length){el.innerHTML='<div class="list-empty">Keine Produkte geladen.</div>';return}
+  if(!idx.inv.length){el.innerHTML='<div class="list-empty">Keine bestandsgeführten Produkte geladen.</div>';return}
   if(!keys.length){el.innerHTML=`<div class="list-empty">${q?'Keine offenen Produkte für diesen Filter.':'🎉 Alle Produkte sind gezählt.'}</div>`;return}
   const hasCat=keys.some(k=>products[k].cat);
   if(hasCat)keys.sort((a,b)=>(products[a].cat||'~').localeCompare(products[b].cat||'~','de')||products[a].name.localeCompare(products[b].name,'de'));
-  let h=`<p class="hint-text">${keys.length} Produkte noch nicht gezählt (in keinem Bereich, auf keinem eingelesenen Gerät). <b>0</b> tippen = in „${esc(settings.area||'–')}" nachgesehen, nichts da.</p>`;
+  let h=`<p class="hint-text">${keys.length} bestandsgeführte Produkte noch nicht gezählt (in keinem Bereich, auf keinem eingelesenen Gerät). <b>0</b> tippen = in „${esc(settings.area||'–')}" nachgesehen, nichts da.</p>`;
   let lastCat=null;
   keys.slice(0,openLimit).forEach(k=>{
     const p=products[k];
     if(hasCat&&p.cat!==lastCat){lastCat=p.cat;h+=`<div class="group-h">${esc(p.cat||'Ohne Kategorie')}</div>`}
-    h+=`<div class="card tap" data-act="invPick" data-key="${esc(k)}"><div class="c-info"><div class="c-name">${esc(p.name)}</div><div class="c-meta">${esc(prodMeta(p))}</div></div><button class="mini-btn" data-act="invZero" data-key="${esc(k)}">0</button></div>`;
+    h+=`<div class="card tap" data-act="invPick" data-key="${esc(k)}"><div class="c-info"><div class="c-name">${esc(p.name)}</div><div class="c-meta">${esc(prodMeta(p))}${bookOf(p)!==null?' · Buchbestand '+fmt(p.stock):''}</div></div><button class="mini-btn" data-act="invZero" data-key="${esc(k)}">0</button></div>`;
   });
   if(keys.length>openLimit)h+=`<button class="btn sec" data-act="openMore">${keys.length-openLimit} weitere anzeigen</button>`;
   el.innerHTML=h;
@@ -1063,13 +1110,15 @@ function invZero(key){
   toast(`„${p.name}" = 0`,{action:'Rückgängig',fn:()=>{inv=inv.filter(x=>x.id!==e.id);saveInv();renderInv()}});
 }
 function renderDone(){
-  const ck=countedKeys();const total=idx.sorted.length;const counted=idx.sorted.filter(k=>ck.has(k)).length;
+  const ck=countedKeys();const total=idx.inv.length;const counted=idx.inv.filter(k=>ck.has(k)).length;
   const unk=inv.filter(e=>e.unk).length;
+  const untr=[...new Set(inv.filter(e=>!e.unk&&products[e.key]&&products[e.key].track===false).map(e=>products[e.key].name))];
+  $('odoo-loc-label').textContent=settings.odooLoc||'WH/Bestand';$('acc-date').value=settings.accDate||'';
   $('done-stats').innerHTML=`<div class="stat"><b>${inv.length}</b><span>Positionen</span></div><div class="stat"><b>${counted}</b><span>Produkte gezählt</span></div><div class="stat"><b>${total-counted}</b><span>offen</span></div>`;
   const areas={};
   inv.forEach(e=>{const a=areas[e.area]||(areas[e.area]={n:0,who:new Set()});a.n++;if(e.who)a.who.add(e.who)});
   const names=Object.keys(areas).sort((a,b)=>a.localeCompare(b,'de'));
-  $('done-areas').innerHTML=names.length?`<table class="t"><tr><th>Bereich</th><th>Positionen</th><th>Gezählt von</th></tr>${names.map(a=>`<tr><td><b>${esc(a)}</b></td><td>${areas[a].n}</td><td>${esc([...areas[a].who].join(', '))}</td></tr>`).join('')}</table>`+(unk?`<p class="hint-text" style="margin-top:8px;color:var(--danger)">${unk} unbekannte Barcodes – stehen in der Zählliste, aber nicht in der Odoo-Datei.</p>`:''):'<p class="hint-text" style="margin:0">Noch keine Zählungen.</p>';
+  $('done-areas').innerHTML=names.length?`<table class="t"><tr><th>Bereich</th><th>Positionen</th><th>Gezählt von</th></tr>${names.map(a=>`<tr><td><b>${esc(a)}</b></td><td>${areas[a].n}</td><td>${esc([...areas[a].who].join(', '))}</td></tr>`).join('')}</table>`+(unk?`<p class="hint-text" style="margin-top:8px;color:var(--danger)">${unk} unbekannte Barcodes – stehen in der Zählliste, aber nicht in der Odoo-Datei.</p>`:'')+(untr.length?`<p class="hint-text" style="margin-top:8px;color:var(--warn)">${untr.length} gezählte Produkte sind in Odoo nicht bestandsgeführt und kommen nicht in die Odoo-Datei: ${esc(untr.slice(0,8).join(', '))}${untr.length>8?' …':''}. Falls sie doch Bestand haben: in Odoo „Bestand verfolgen“ anhaken und produkte.csv neu exportieren.</p>`:''):'<p class="hint-text" style="margin:0">Noch keine Zählungen.</p>';
 }
 
 // Export / Zusammenführen
@@ -1102,18 +1151,51 @@ async function mergeFiles(files){
   const st=$('merge-status');st.className='status-line '+(added?'ok':(bad?'err':''));
   st.textContent=`${added} Zählungen übernommen`+(skipped?`, ${skipped} waren schon vorhanden`:'')+(bad?`, ${bad} Datei(en) nicht erkannt (keine Zählliste?)`:'')+'.';
 }
-function exportOdoo(){
-  if(!inv.length&&!$('zero-open').checked)return toast('Noch keine Zählungen');
+function invSums(withZero){
   const sum={};
-  inv.forEach(e=>{if(e.unk||!products[e.key])return;const s=sum[e.key]||(sum[e.key]={qty:0,areas:new Set()});s.qty=round(s.qty+e.qty);s.areas.add(e.area)});
-  if($('zero-open').checked)idx.sorted.forEach(k=>{if(!sum[k])sum[k]={qty:0,areas:new Set(['nicht gezählt'])}});
+  inv.forEach(e=>{const p=products[e.key];if(e.unk||!p||p.track===false)return;const x=sum[e.key]||(sum[e.key]={qty:0,areas:new Set(),who:new Set()});x.qty=round(x.qty+e.qty);x.areas.add(e.area);if(e.who)x.who.add(e.who)});
+  if(withZero)idx.inv.forEach(k=>{if(!sum[k])sum[k]={qty:0,areas:new Set(['nicht gezählt → 0']),who:new Set()}});
   const keys=Object.keys(sum).sort((a,b)=>products[a].name.localeCompare(products[b].name,'de'));
-  const rows=['Barcode;Interne Referenz;Produkt;Einheit;Gezählte Menge;Bereiche',...keys.map(k=>{const p=products[k],s=sum[k];return [csvTxt(p.bc),csvTxt(p.ref),csvTxt(p.name),csvTxt(p.unit),csvNum(s.qty),csvTxt([...s.areas].join(', '))].join(';')})];
-  exportFile(`inventur_odoo_${fileStamp()}.csv`,rows.join('\r\n'));
-  const unk=inv.filter(e=>e.unk).length;if(unk)setTimeout(()=>toast(`${unk} unbekannte Barcodes nicht enthalten`,{err:true}),2700);
+  return {sum,keys};
+}
+// Odoo ordnet das Produkt über die Interne Referenz zu (z. B. „100“ für „[100] Butternutkürbis“),
+// sonst über den Barcode, zuletzt über den Namen.
+function odooProductValue(){
+  const all=Object.values(products);const refC={},bcC={},nameC={};
+  all.forEach(p=>{if(p.ref)refC[p.ref]=(refC[p.ref]||0)+1;if(p.bc)bcC[p.bc]=(bcC[p.bc]||0)+1;nameC[p.name]=(nameC[p.name]||0)+1});
+  const amb=[];
+  const val=k=>{const p=products[k];
+    if(p.ref&&refC[p.ref]===1)return p.ref;
+    if(p.bc&&bcC[p.bc]===1)return p.bc;
+    if(nameC[p.name]>1)amb.push(p.name);
+    return p.name};
+  return {val,amb};
+}
+function exportOdoo(){
+  const zero=$('zero-open').checked;
+  const {sum,keys}=invSums(zero);
+  if(!keys.length)return toast('Keine bestandsgeführten Produkte gezählt');
+  const {val,amb}=odooProductValue();
+  const f=s=>{s=String(s??'');return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
+  const loc=(settings.odooLoc||'WH/Bestand').trim();
+  const ad=$('acc-date').value;
+  const rows=['product_id,location_id,inventory_quantity'+(ad?',accounting_date':''),...keys.map(k=>[f(val(k)),f(loc),String(round(sum[k].qty))].concat(ad?[ad]:[]).join(','))];
+  exportFile(`inventur_odoo_import_${fileStamp()}.csv`,rows.join('\r\n'),{bom:false});
+  const warn=[];
+  const unk=inv.filter(e=>e.unk).length;if(unk)warn.push(`${unk} unbekannte Barcodes`);
+  const untr=new Set(inv.filter(e=>!e.unk&&products[e.key]&&products[e.key].track===false).map(e=>e.key)).size;if(untr)warn.push(`${untr} nicht bestandsgeführte`);
+  if(warn.length)setTimeout(()=>toast('Nicht in der Odoo-Datei: '+warn.join(', '),{err:true}),2700);
+  if(amb.length)setTimeout(()=>toast(`${new Set(amb).size} Produkte ohne Ref./Barcode mit doppeltem Namen – im Probe-Import prüfen`,{err:true}),5600);
+}
+function exportSummary(){
+  const {sum,keys}=invSums($('zero-open').checked);
+  if(!keys.length)return toast('Keine bestandsgeführten Produkte gezählt');
+  const hs=settings.stockAt>0;
+  const rows=['Interne Referenz;Barcode;Produkt;Einheit;Gezählte Menge'+(hs?';Buchbestand;Differenz':'')+';Bereiche;Gezählt von',...keys.map(k=>{const p=products[k],x=sum[k];const b=p.stock;return [csvTxt(p.ref),csvTxt(p.bc),csvTxt(p.name),csvTxt(p.unit),csvNum(x.qty)].concat(hs?[b===undefined?'':csvNum(b),b===undefined?'':csvNum(x.qty-b)]:[]).concat([csvTxt([...x.areas].join(', ')),csvTxt([...x.who].join(', '))]).join(';')})];
+  exportFile(`inventur_summen_${fileStamp()}.csv`,rows.join('\r\n'));
 }
 function exportOpen(){
-  const ck=countedKeys();const keys=idx.sorted.filter(k=>!ck.has(k));
+  const ck=countedKeys();const keys=idx.inv.filter(k=>!ck.has(k));
   if(!keys.length)return toast('Keine offenen Produkte');
   exportFile(`inventur_offen_${fileStamp()}.csv`,['Barcode;Interne Referenz;Produkt;Einheit;Kategorie',...keys.map(k=>{const p=products[k];return [csvTxt(p.bc),csvTxt(p.ref),csvTxt(p.name),csvTxt(p.unit),csvTxt(p.cat)].join(';')})].join('\r\n'));
 }
@@ -1133,8 +1215,8 @@ function renderProducts(){
   $('prod-src').textContent=productSource;
   const q=$('prod-q').value;const keys=q.trim()?searchProducts(q,100):idx.sorted.slice(0,100);
   const total=idx.sorted.length;
-  $('prod-table').innerHTML=keys.length?`<table class="t"><tr><th>Produkt</th><th>Barcode / Ref.</th><th>Einheit</th><th></th></tr>${keys.map(k=>{const p=products[k];return `<tr><td>${esc(p.name)}${p.manual?' <span class="badge" style="background:var(--warn)">eigen</span>':''}${p.cat?`<div class="c-meta">${esc(p.cat)}</div>`:''}</td><td class="mono" style="font-size:11px;color:var(--text2)">${esc(p.bc||(p.ref?'Ref '+p.ref:'–'))}</td><td>${esc(p.unit||'–')}</td><td>${p.manual?`<button class="del-btn" data-act="delProduct" data-key="${esc(k)}">✕</button>`:''}</td></tr>`}).join('')}</table>${!q.trim()&&total>100?`<p class="hint-text" style="margin-top:8px">Erste 100 von ${total} – zum Finden die Suche verwenden.</p>`:''}`:'<p class="hint-text">Keine Produkte.</p>';
-  $('set-who').value=settings.who||'';$('set-sound').checked=!!settings.sound;$('set-wake').checked=!!settings.wake;
+  $('prod-table').innerHTML=keys.length?`<table class="t"><tr><th>Produkt</th><th>Barcode / Ref.</th><th>Einheit</th><th></th></tr>${keys.map(k=>{const p=products[k];return `<tr><td>${esc(p.name)}${p.manual?' <span class="badge" style="background:var(--warn)">eigen</span>':''}${p.track===false?' <span class="badge" style="background:var(--muted)">ohne Bestand</span>':''}${p.cat?`<div class="c-meta">${esc(p.cat)}</div>`:''}</td><td class="mono" style="font-size:11px;color:var(--text2)">${esc(p.bc||(p.ref?'Ref '+p.ref:'–'))}</td><td>${esc(p.unit||'–')}</td><td>${p.manual?`<button class="del-btn" data-act="delProduct" data-key="${esc(k)}">✕</button>`:''}</td></tr>`}).join('')}</table>${!q.trim()&&total>100?`<p class="hint-text" style="margin-top:8px">Erste 100 von ${total} – zum Finden die Suche verwenden.</p>`:''}`:'<p class="hint-text">Keine Produkte.</p>';
+  $('set-who').value=settings.who||'';$('set-loc').value=settings.odooLoc||'WH/Bestand';$('set-sound').checked=!!settings.sound;$('set-stock').checked=!!settings.showStock;$('set-wake').checked=!!settings.wake;
   const persisted=window.__persisted;
   $('device-info').innerHTML=`Gerät <b class="mono">${esc(settings.device)}</b> · ${APP_VERSION} · ${isStandalone()?'als App installiert':'im Browser geöffnet'}${persisted===true?' · Speicher dauerhaft':''}${persisted===false?' · Speicher nicht dauerhaft gesichert':''}`;
 }
@@ -1155,7 +1237,7 @@ async function importProductFile(f){
 }
 function exportProducts(){
   if(!idx.sorted.length)return toast('Keine Produkte');
-  exportFile('produkte.csv',['Barcode;Name;Einheit;Interne Referenz;Produktkategorie',...idx.sorted.map(k=>{const p=products[k];return [csvTxt(p.bc),csvTxt(p.name),csvTxt(p.unit),csvTxt(p.ref),csvTxt(p.cat)].join(';')})].join('\r\n'));
+  exportFile('produkte.csv',['Barcode;Name;Einheit;Interne Referenz;Produktkategorie;Bestand verfolgen',...idx.sorted.map(k=>{const p=products[k];return [csvTxt(p.bc),csvTxt(p.name),csvTxt(p.unit),csvTxt(p.ref),csvTxt(p.cat),p.track===false?'False':'True'].join(';')})].join('\r\n'));
 }
 
 // ═══════════ KAMERA ═══════════
@@ -1227,7 +1309,7 @@ const actions={
   clearInvQ:()=>{$('inv-q').value='';renderCount();focusScan()},
   listFilter:d=>{listFilter=d.a;renderInvList()},
   openMore:()=>{openLimit+=300;renderOpen()},
-  exportDetail, exportOdoo, exportOpen, printInv, clearInv,
+  exportDetail, exportOdoo, exportSummary, exportOpen, printInv, clearInv,
   pickMerge:()=>$('merge-file').click(),
   addManual, exportProducts, reloadCSV:()=>loadCSV(true),
   pickProductFile:()=>$('prod-file').click(),
@@ -1238,7 +1320,7 @@ document.addEventListener('click',e=>{
   const t=e.target.closest('[data-tab]');if(t){showTab(t.dataset.tab);return}
   const s=e.target.closest('[data-seg]');if(s){setSeg(s.dataset.seg);return}
   const p=e.target.closest('[data-pad]');
-  if(p){const k=p.dataset.pad;if(k==='ok')padSubmit('ok');else if(k==='sec')padSubmit('sec');else if(k==='cancel')closePad();else padKey(k);return}
+  if(p){const k=p.dataset.pad;if(k==='ok')padSubmit('ok');else if(k==='fill')padFill();else if(k==='sec')padSubmit('sec');else if(k==='cancel')closePad();else padKey(k);return}
   const a=e.target.closest('[data-act]');
   if(a&&actions[a.dataset.act]){e.stopPropagation();actions[a.dataset.act](a.dataset)}
 });
@@ -1250,6 +1332,10 @@ $('open-q').addEventListener('input',()=>{openLimit=150;renderOpen()});
 $('prod-q').addEventListener('input',renderProducts);
 $('ask-qty').addEventListener('change',e=>{settings.askQty=e.target.checked;saveSettings();focusScan()});
 $('set-who').addEventListener('change',e=>{settings.who=e.target.value.trim();saveSettings()});
+$('set-loc').addEventListener('change',e=>{settings.odooLoc=e.target.value.trim()||'WH/Bestand';saveSettings();e.target.value=settings.odooLoc});
+$('set-stock').addEventListener('change',e=>{settings.showStock=e.target.checked;saveSettings()});
+$('acc-date').addEventListener('change',e=>{settings.accDate=e.target.value;saveSettings()});
+$('open-nz').addEventListener('change',()=>{openLimit=150;renderOpen()});
 $('set-sound').addEventListener('change',e=>{settings.sound=e.target.checked;saveSettings();if(settings.sound){unlockAudio();beep(true)}});
 $('set-wake').addEventListener('change',e=>{settings.wake=e.target.checked;saveSettings();if(!settings.wake&&wakeLock){wakeLock.release();wakeLock=null}else keepAwake()});
 $('merge-file').addEventListener('change',e=>{if(e.target.files.length)mergeFiles([...e.target.files]);e.target.value=''});
