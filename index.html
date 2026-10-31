@@ -34,7 +34,7 @@
   header{display:flex;align-items:center;padding:env(safe-area-inset-top,0) 16px 0;min-height:calc(52px + env(safe-area-inset-top,0px));box-sizing:border-box;background:var(--purple);gap:12px;flex-shrink:0}
   .logo-chip{display:flex;align-items:center;background:#fff;border-radius:8px;padding:6px 10px;flex-shrink:0}
   .logo-chip svg{display:block;width:auto}
-  .help-btn{width:32px;height:32px;border-radius:50%;border:1.5px solid rgba(255,255,255,.55);color:#fff;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;text-decoration:none;flex-shrink:0}
+  .help-btn{width:32px;height:32px;border-radius:50%;border:1.5px solid rgba(255,255,255,.55);background:transparent;cursor:pointer;padding:0;color:#fff;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;text-decoration:none;flex-shrink:0}
   .help-btn:active{background:rgba(255,255,255,.15)}
   .h-title{flex:1;font-size:15px;font-weight:600;color:#fff}
   #h-meta{font-size:11px;color:rgba(255,255,255,.7);text-align:right;line-height:1.3}
@@ -218,6 +218,15 @@
   .chip-wrap .chip{border-top-right-radius:0;border-bottom-right-radius:0;border-right:0}
   .chip-x{border:1.5px solid var(--border2);border-left:1px solid var(--border);border-radius:0 99px 99px 0;background:var(--surface);color:var(--muted);font-size:12px;padding:0 9px;cursor:pointer}
   .chip-x:active{color:var(--danger)}
+  .help-list{display:flex;flex-direction:column;gap:8px}
+  .help-item{display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid var(--border);border-radius:10px;text-decoration:none;color:var(--text);background:var(--surface)}
+  .help-item:active{background:var(--surface2)}
+  .help-item.match{border-color:var(--teal);background:var(--teal-bg)}
+  .help-ico{width:40px;height:40px;border-radius:10px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+  .help-item.match .help-ico{background:#fff}
+  .help-t{font-size:15px;font-weight:600}
+  .help-d{font-size:12px;color:var(--text2);margin-top:2px;line-height:1.35}
+  .help-tag{margin-left:auto;font-size:11px;font-weight:600;color:#0b5c5a;background:#fff;border:1px solid #b5e3e1;border-radius:99px;padding:2px 8px;white-space:nowrap;align-self:flex-start}
   .recent-areas{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
   .sheet-results{overflow-y:auto;margin-top:10px;flex:1;min-height:0}
 
@@ -266,7 +275,7 @@
 <header>
   <span class="logo-chip"><svg viewBox="98 198 618 206" height="22" role="img" aria-label="Odoo"><path fill="#A24689" d="M166.205,250.621c10.126,0,19.689,2.016,28.683,6.046c8.992,4.031,16.898,9.458,23.721,16.279 c6.821,6.822,12.248,14.782,16.279,23.876c4.031,9.1,6.046,18.813,6.046,29.147c0,10.34-1.967,20.001-5.891,28.993 c-3.93,8.992-9.254,16.899-15.97,23.721c-6.72,6.821-14.627,12.199-23.721,16.124c-9.099,3.93-18.915,5.892-29.458,5.892 c-10.339,0-20.053-1.86-29.147-5.581c-9.099-3.722-17.054-8.939-23.876-15.659c-6.821-6.716-12.199-14.622-16.124-23.722 c-3.929-9.094-5.892-19.017-5.892-29.768c0-10.334,1.909-20,5.736-28.992c3.823-8.992,9.147-16.846,15.97-23.565 c6.821-6.716,14.83-12.094,24.031-16.124C145.788,253.257,155.662,251.037,166.205,250.621z M165.895,281.318 c-5.998,0-11.734,1.139-17.209,3.411c-5.479,2.277-10.232,5.427-14.264,9.458c-4.031,4.03-7.238,8.735-9.612,14.108 c-2.379,5.378-3.566,11.27-3.566,17.674c0,5.998,1.188,11.735,3.566,17.21c2.374,5.479,5.581,10.286,9.612,14.419 c4.031,4.137,8.784,7.393,14.264,9.767c5.475,2.379,11.211,3.566,17.209,3.566c5.993,0,11.73-1.188,17.21-3.566 c5.475-2.374,10.232-5.63,14.264-9.767c4.031-4.133,7.233-8.939,9.612-14.419c2.374-5.475,3.565-11.212,3.565-17.21 c-0.62-12.194-4.961-22.48-13.022-30.853c-8.063-8.372-18.504-12.97-31.318-13.799H165.895z"/><path fill="#8F8F8F" d="M382.019,202.869c3.513-0.204,6.821,1.191,9.923,4.186c3.101,2.999,4.65,6.255,4.65,9.768V325.66 c0,10.131-2.068,19.743-6.201,28.837c-4.138,9.1-9.719,17.055-16.744,23.876c-7.03,6.822-15.039,12.249-24.031,16.279 c-8.992,4.031-18.45,6.047-28.372,6.047c-10.131,0-19.743-1.962-28.838-5.892c-9.099-3.925-17.054-9.303-23.876-16.124 c-6.821-6.821-12.248-14.777-16.279-23.876c-4.031-9.094-6.046-18.809-6.046-29.147c0-11.163,1.807-20.979,5.426-29.458 c3.614-8.474,9.041-16.434,16.279-23.876v0.311c7.646-7.233,16.071-12.714,25.271-16.435c9.196-3.721,18.653-5.581,28.372-5.581 c5.785,0,12.66,0.93,20.62,2.791c7.956,1.86,15.863,5.479,23.722,10.853v-45.892c0-2.064,0.411-4.031,1.24-5.892 c0.823-1.86,1.909-3.566,3.256-5.116c1.342-1.551,2.945-2.738,4.806-3.566c1.86-0.823,3.722-1.134,5.582-0.93H382.019z M365.895,325.66c0-5.581-1.192-11.057-3.566-16.435c-2.379-5.373-5.635-10.179-9.768-14.418 c-4.138-4.235-8.891-7.598-14.264-10.078c-5.378-2.48-11.061-3.721-17.054-3.721c-5.998,0-11.734,1.191-17.21,3.565 c-5.479,2.379-10.232,5.582-14.264,9.613c-4.03,4.03-7.238,8.788-9.612,14.263c-2.379,5.48-3.565,11.217-3.565,17.21 c0,6.201,1.187,11.991,3.565,17.364c2.374,5.378,5.582,10.078,9.612,14.108c4.031,4.031,8.784,7.238,14.264,9.612 c5.476,2.379,11.212,3.566,17.21,3.566c5.993,0,11.676-1.188,17.054-3.566c5.373-2.374,10.126-5.581,14.264-9.612 c4.133-4.03,7.389-8.73,9.768-14.108C364.702,337.651,365.895,331.861,365.895,325.66z"/><path fill="#8F8F8F" d="M480.623,250.621c10.126,0,19.689,2.016,28.683,6.046c8.992,4.031,16.898,9.458,23.721,16.279 c6.821,6.822,12.248,14.782,16.279,23.876c4.031,9.1,6.046,18.813,6.046,29.147c0,10.34-1.967,20.001-5.891,28.993 c-3.93,8.992-9.254,16.899-15.97,23.721c-6.72,6.821-14.627,12.199-23.721,16.124c-9.099,3.93-18.915,5.892-29.458,5.892 c-10.339,0-20.053-1.86-29.147-5.581c-9.099-3.722-17.054-8.939-23.876-15.659c-6.821-6.716-12.199-14.622-16.124-23.722 c-3.929-9.094-5.892-19.017-5.892-29.768c0-10.334,1.909-20,5.736-28.992c3.823-8.992,9.147-16.846,15.97-23.565 c6.821-6.716,14.83-12.094,24.031-16.124C460.206,253.257,470.08,251.037,480.623,250.621z M480.313,281.318 c-5.998,0-11.734,1.139-17.209,3.411c-5.479,2.277-10.232,5.427-14.264,9.458c-4.031,4.03-7.238,8.735-9.612,14.108 c-2.379,5.378-3.566,11.27-3.566,17.674c0,5.998,1.188,11.735,3.566,17.21c2.374,5.479,5.581,10.286,9.612,14.419 c4.031,4.137,8.784,7.393,14.264,9.767c5.475,2.379,11.211,3.566,17.209,3.566c5.993,0,11.73-1.188,17.21-3.566 c5.475-2.374,10.232-5.63,14.264-9.767c4.031-4.133,7.233-8.939,9.612-14.419c2.374-5.475,3.565-11.212,3.565-17.21 c-0.62-12.194-4.961-22.48-13.022-30.853c-8.063-8.372-18.504-12.97-31.318-13.799H480.313z"/><path fill="#8F8F8F" d="M638.142,250.621c10.126,0,19.689,2.016,28.683,6.046c8.992,4.031,16.898,9.458,23.721,16.279 c6.821,6.822,12.248,14.782,16.279,23.876c4.031,9.1,6.046,18.813,6.046,29.147c0,10.34-1.967,20.001-5.891,28.993 c-3.93,8.992-9.254,16.899-15.97,23.721c-6.72,6.821-14.627,12.199-23.721,16.124c-9.099,3.93-18.915,5.892-29.458,5.892 c-10.339,0-20.053-1.86-29.147-5.581c-9.099-3.722-17.054-8.939-23.876-15.659c-6.821-6.716-12.199-14.622-16.124-23.722 c-3.929-9.094-5.892-19.017-5.892-29.768c0-10.334,1.909-20,5.736-28.992c3.823-8.992,9.147-16.846,15.97-23.565 c6.821-6.716,14.83-12.094,24.031-16.124C617.725,253.257,627.599,251.037,638.142,250.621z M637.831,281.318 c-5.998,0-11.734,1.139-17.209,3.411c-5.479,2.277-10.232,5.427-14.264,9.458c-4.031,4.03-7.238,8.735-9.612,14.108 c-2.379,5.378-3.566,11.27-3.566,17.674c0,5.998,1.188,11.735,3.566,17.21c2.374,5.479,5.581,10.286,9.612,14.419 c4.031,4.137,8.784,7.393,14.264,9.767c5.475,2.379,11.211,3.566,17.209,3.566c5.993,0,11.73-1.188,17.21-3.566 c5.475-2.374,10.232-5.63,14.264-9.767c4.031-4.133,7.233-8.939,9.612-14.419c2.374-5.475,3.565-11.212,3.565-17.21 c-0.62-12.194-4.961-22.48-13.023-30.853c-8.062-8.372-18.503-12.97-31.317-13.799H637.831z"/></svg></span>
   <div class="h-title">Hofladen</div>
-  <a class="help-btn" href="anleitung.pdf" target="_blank" rel="noopener" title="Kurzanleitung Inventur (PDF)" aria-label="Kurzanleitung Inventur (PDF)">?</a>
+  <button class="help-btn" data-act="openHelp" title="Hilfe und Anleitungen" aria-label="Hilfe und Anleitungen">?</button>
   <div id="h-meta"></div>
 </header>
 <div id="sync-status">Produkte werden geladen…</div>
@@ -460,10 +469,7 @@
       <label class="check-line"><input type="checkbox" id="set-sound"> Töne beim Scannen (bekannt / unbekannt)</label>
       <label class="check-line"><input type="checkbox" id="set-wake"> Bildschirm bleibt an, solange die App offen ist</label>
       <button class="btn sec" data-act="checkUpdateNow" style="margin-top:12px">⟳ Auf neue Version prüfen</button>
-      <p style="margin-top:10px;margin-bottom:0"><a href="alltag.pdf" target="_blank" rel="noopener" style="color:var(--purple);font-weight:600">🛒 Kurzanleitung Auffüllen, Packliste &amp; Produkte (PDF)</a></p>
-      <p style="margin-top:8px;margin-bottom:0"><a href="anleitung.pdf" target="_blank" rel="noopener" style="color:var(--purple);font-weight:600">📄 Kurzanleitung Inventur (PDF)</a></p>
-      <p style="margin-top:8px;margin-bottom:0"><a href="installation.pdf" target="_blank" rel="noopener" style="color:var(--purple);font-weight:600">📱 Kurzanleitung Installation (PDF)</a></p>
-      <p style="margin-top:8px;margin-bottom:0"><a href="produktliste.pdf" target="_blank" rel="noopener" style="color:var(--purple);font-weight:600">🔄 Kurzanleitung Produktliste aktualisieren (PDF)</a></p>
+      <button class="btn sec" data-act="openHelp" style="margin-top:8px">? Hilfe &amp; Kurzanleitungen</button>
       <p id="device-info" style="margin-top:10px;margin-bottom:0"></p>
     </div>
   </div>
@@ -522,6 +528,16 @@
   </div>
 </div>
 
+<!-- Hilfe -->
+<div class="overlay" id="help" hidden>
+  <div class="sheet">
+    <div class="sheet-title">Hilfe &amp; Kurzanleitungen</div>
+    <div class="sheet-sub">Jeweils eine Seite als PDF – auch ohne Netz.</div>
+    <div id="help-list" class="help-list"></div>
+    <div class="pad-actions" style="margin-top:14px"><button data-act="closeHelp">Schließen</button></div>
+  </div>
+</div>
+
 <!-- Kamera -->
 <div class="overlay" id="cam" hidden>
   <video id="cam-video" autoplay playsinline muted></video>
@@ -535,7 +551,7 @@
 
 <script>
 'use strict';
-const APP_VERSION='v3.5.4';
+const APP_VERSION='v3.6';
 const CSV_URL='produkte.csv';
 const $=id=>document.getElementById(id);
 
@@ -847,7 +863,7 @@ document.addEventListener('keydown',e=>{
     else return;
     e.preventDefault();return;
   }
-  if(e.key==='Escape'){closeSearch();closeSetup();closeCamera();return}
+  if(e.key==='Escape'){closeSearch();closeSetup();closeCamera();if(!$('help').hidden)closeHelp();return}
   const ae=document.activeElement;
   const typing=ae&&(ae.tagName==='TEXTAREA'||(ae.tagName==='INPUT'&&!ae.classList.contains('scan-field')));
   if(e.key==='/'&&!typing){
@@ -1349,6 +1365,7 @@ const actions={
   exportPack, printPack,
   clearPack:()=>{if(packItems.length&&confirm('Packliste wirklich leeren?')){packItems=[];packCurrent=null;savePack();renderPackList()}},
   setup:()=>openSetup(false), closeSetup, saveSetup,
+  openHelp, closeHelp,
   applyUpdate, checkUpdateNow:()=>checkUpdate(true),
   resetSetup, dropArea:d=>{settings.recentAreas=(settings.recentAreas||[]).filter(x=>x!==d.a);if(settings.area===d.a&&!inv.some(e=>e.area===d.a)){settings.area='';if($('setup-area').value===d.a)$('setup-area').value=''}saveSettings();renderAreaChips()},
   pickArea:d=>{$('setup-area').value=d.a;$('setup-recent').querySelectorAll('.chip').forEach(c=>c.classList.toggle('area',c.dataset.a===d.a));if(!$('setup-who').value)$('setup-who').focus()},
@@ -1374,6 +1391,7 @@ document.addEventListener('click',e=>{
 });
 $('pad').addEventListener('click',e=>{if(e.target.id==='pad')closePad()});
 $('setup').addEventListener('click',e=>{if(e.target.id==='setup')closeSetup()});
+$('help').addEventListener('click',e=>{if(e.target.id==='help')closeHelp()});
 $('search-sheet').addEventListener('click',e=>{if(e.target.id==='search-sheet')closeSearch()});
 $('inv-q').addEventListener('input',()=>renderCount());
 $('sheet-q').addEventListener('input',renderSheetResults);
@@ -1411,6 +1429,20 @@ if('serviceWorker' in navigator&&location.protocol==='https:'){
 if(navigator.storage&&navigator.storage.persist){
   navigator.storage.persisted().then(p=>p?true:navigator.storage.persist()).then(p=>{window.__persisted=!!p}).catch(()=>{});
 }
+
+// ═══════════ HILFE ═══════════
+const GUIDES=[
+  {f:'alltag.pdf',ico:'🛒',t:'Auffüllen, Packliste & Produkte',d:'Scannen, Packliste abarbeiten, fehlende Produkte anlegen',tabs:['scan','list']},
+  {f:'anleitung.pdf',ico:'🔢',t:'Inventur',d:'Bereiche zählen, Listen zusammenführen, in Odoo einbuchen',tabs:['inv']},
+  {f:'produktliste.pdf',ico:'🔄',t:'Produktliste aktualisieren',d:'produkte.csv aus Odoo exportieren und auf GitHub hochladen',tabs:['prod']},
+  {f:'installation.pdf',ico:'📱',t:'Installation',d:'App auf iPhone, Android und PC/Mac einrichten, Scanner koppeln',tabs:[]},
+];
+function openHelp(){
+  const list=[...GUIDES].sort((a,b)=>(b.tabs.includes(tab)?1:0)-(a.tabs.includes(tab)?1:0));
+  $('help-list').innerHTML=list.map(g=>{const m=g.tabs.includes(tab);return `<a class="help-item ${m?'match':''}" href="${g.f}" target="_blank" rel="noopener"><span class="help-ico">${g.ico}</span><span style="min-width:0"><div class="help-t">${esc(g.t)}</div><div class="help-d">${esc(g.d)}</div></span>${m?'<span class="help-tag">passt hierzu</span>':''}</a>`}).join('');
+  $('help').hidden=false;
+}
+function closeHelp(){$('help').hidden=true;focusScan()}
 
 // ═══════════ UPDATES ═══════════
 // iOS setzt Home-Bildschirm-Apps oft nur fort, statt sie neu zu laden. Darum fragt die App selbst nach.
