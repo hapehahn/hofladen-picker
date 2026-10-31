@@ -2,164 +2,243 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>Regalbestückung · Odoo</title>
-<script>
-// Platzhalter
-</script>
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Hofladen">
+<meta name="theme-color" content="#714B67">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<title>Hofladen-Picker</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
-  :root {
-    --bg:#f5f4f8; --surface:#ffffff; --surface2:#f0eef5; --border:#ddd9e8; --border2:#c8c2db;
-    --odoo-purple:#714B67; --odoo-teal:#00A09D;
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+  :root{
+    --bg:#f5f4f8; --surface:#fff; --surface2:#f0eef5; --border:#ddd9e8; --border2:#c8c2db;
+    --purple:#714B67; --purple-d:#5a3952; --teal:#00A09D; --teal-bg:#edf8f7;
     --text:#2c2438; --text2:#6b5f7a; --muted:#a098b0;
-    --danger:#c0392b;
+    --danger:#c0392b; --danger-bg:#fdf3f2; --warn:#b7791f; --warn-bg:#fdf6e9;
     --radius:8px; --shadow:0 1px 4px rgba(113,75,103,.08),0 0 0 1px rgba(113,75,103,.06);
+    --app-w:540px;
+    --sab:env(safe-area-inset-bottom,0px);
   }
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%;background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:15px;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
-  #app{display:flex;flex-direction:column;height:100dvh;max-width:540px;margin:0 auto;background:var(--bg)}
+  [hidden]{display:none!important}
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;font-size:15px;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
+  button{font-family:inherit;color:inherit}
+  input,textarea{font-family:inherit}
+  #app{display:flex;flex-direction:column;height:100dvh;max-width:var(--app-w);margin:0 auto;background:var(--bg)}
+  .mono{font-family:'IBM Plex Mono',ui-monospace,monospace}
 
-  /* Header */
-  header{display:flex;align-items:center;padding:0 16px;height:52px;background:var(--odoo-purple);gap:12px;flex-shrink:0}
-  .header-title{flex:1;font-size:13px;font-weight:500;color:rgba(255,255,255,.75)}
-  .header-title strong{color:#fff;font-weight:600}
+  header{display:flex;align-items:center;padding:env(safe-area-inset-top,0) 16px 0;min-height:52px;background:var(--purple);gap:12px;flex-shrink:0}
+  .h-title{flex:1;font-size:15px;font-weight:600;color:#fff}
+  #h-meta{font-size:11px;color:rgba(255,255,255,.7);text-align:right;line-height:1.3}
+  #h-meta .v{color:rgba(255,255,255,.4);font-size:10px}
 
-  /* Tabs */
+  #sync-status{text-align:center;font-size:11px;padding:4px 16px;background:var(--surface2);border-bottom:1px solid var(--border);color:var(--muted);flex-shrink:0}
+  .banner{display:flex;gap:10px;align-items:center;padding:8px 12px;background:var(--warn-bg);border-bottom:1px solid #f0dcb4;font-size:12px;color:#7a5410;flex-shrink:0}
+  .banner span{flex:1;line-height:1.4}
+  .banner button{border:1px solid #e3c88f;background:#fff;border-radius:6px;padding:5px 9px;font-size:12px;cursor:pointer}
+
   .tabs{display:flex;background:var(--surface);border-bottom:2px solid var(--border);flex-shrink:0}
-  .tab{flex:1;padding:11px 0;text-align:center;font-size:12px;font-weight:500;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:color .15s,border-color .15s;letter-spacing:.02em}
-  .tab.active{color:var(--odoo-purple);border-bottom-color:var(--odoo-purple)}
+  .tab{flex:1;padding:11px 0;text-align:center;font-size:12px;font-weight:500;cursor:pointer;color:var(--muted);border:0;background:none;border-bottom:2px solid transparent;margin-bottom:-2px}
+  .tab.active{color:var(--purple);border-bottom-color:var(--purple)}
+  .view{display:none;flex-direction:column;flex:1;overflow:hidden;min-height:0}
+  .view.active{display:flex}
 
-  /* Scan View */
-  #view-scan{display:flex;flex-direction:column;flex:1;overflow:hidden}
-  .scan-input-area{padding:14px 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;box-shadow:0 2px 8px rgba(113,75,103,.05)}
-  .field-label{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
-
+  /* Eingabebereiche */
+  .panel{padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;box-shadow:0 2px 8px rgba(113,75,103,.05)}
+  .label{font-size:11px;font-weight:600;color:var(--text2);letter-spacing:.04em;margin-bottom:5px}
   .scan-row{display:flex;gap:8px;align-items:stretch}
-  .scan-field{flex:1;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--radius);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:15px;padding:9px 12px;outline:none;transition:border-color .15s,box-shadow .15s}
-  .scan-field:focus{border-color:var(--odoo-purple);box-shadow:0 0 0 3px rgba(113,75,103,.12)}
-  .scan-field::placeholder{color:var(--muted)}
+  .scan-field{flex:1;min-width:0;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--radius);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:16px;padding:9px 12px;outline:none}
+  .scan-field:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(113,75,103,.12)}
+  .scan-field::placeholder{color:var(--muted);font-family:'IBM Plex Sans',sans-serif;font-size:14px}
+  .icon-btn{width:46px;min-height:44px;border:none;border-radius:var(--radius);color:#fff;font-size:19px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--purple)}
+  .icon-btn.teal{background:var(--teal)}
+  .icon-btn.light{background:var(--surface2);color:var(--text);border:1.5px solid var(--border2)}
+  .icon-btn:active{opacity:.85}
 
-  /* Camera button */
-  .cam-btn{width:46px;background:var(--odoo-teal);border:none;border-radius:var(--radius);color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:opacity .15s;flex-shrink:0}
-  .cam-btn:hover{opacity:.85}
-  .cam-btn.active{background:#c0392b}
+  .preview{margin-top:10px;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius);padding:10px 12px;min-height:50px;display:flex;align-items:center;gap:10px}
+  .preview.found{background:var(--teal-bg);border-color:var(--teal)}
+  .preview.unknown{background:var(--danger-bg);border-color:#e07060}
+  .preview .pname{font-size:15px;font-weight:600;flex:1;min-width:0}
+  .preview .pmeta{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);margin-top:2px}
+  .preview .hint{color:var(--muted);font-size:13px}
+  .dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;color:#fff;background:var(--teal)}
+  .dot.err{background:#e07060}
+  .badge{background:var(--teal);color:#fff;font-size:11px;font-weight:600;padding:2px 7px;border-radius:99px;white-space:nowrap}
 
-  /* Camera viewfinder */
-  #cam-container{display:none;flex-direction:column;background:#000;flex-shrink:0;position:relative;overflow:hidden}
-  #cam-container.open{display:flex}
-  #cam-video{width:100%;max-height:260px;object-fit:cover;display:block}
-  .cam-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
-  .cam-finder{width:240px;height:100px;border:2px solid var(--odoo-teal);border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,.5)}
-  .cam-hint{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:12px;color:rgba(255,255,255,.85);letter-spacing:.02em;text-shadow:0 1px 3px rgba(0,0,0,.5);pointer-events:none}
-  .cam-close{position:absolute;top:8px;right:10px;background:rgba(0,0,0,.55);border:none;color:#fff;font-size:13px;padding:4px 10px;border-radius:99px;cursor:pointer;z-index:10}
-  .scan-flash{position:absolute;inset:0;background:rgba(0,160,157,.35);opacity:0;transition:opacity .1s;pointer-events:none}
-  .scan-flash.flash{opacity:1}
-
-  /* Preview */
-  .product-preview{margin-top:10px;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius);padding:10px 14px;min-height:48px;display:flex;align-items:center;gap:10px;transition:border-color .15s,background .15s}
-  .product-preview.found{background:#edf8f7;border-color:var(--odoo-teal)}
-  .product-preview.notfound{background:#fdf3f2;border-color:#e07060}
-  .product-preview .pname{font-size:15px;font-weight:600;color:var(--text);flex:1}
-  .product-preview .pcode{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);white-space:nowrap}
-  .product-preview .hint{color:var(--muted);font-size:13px}
-  .status-dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;color:white}
-  .dot-ok{background:var(--odoo-teal)}.dot-err{background:#e07060}
-
-  /* Qty */
   .qty-row{display:flex;gap:8px;margin-top:10px;align-items:center}
-  .qty-btn{width:44px;height:44px;background:var(--surface2);border:1.5px solid var(--border2);border-radius:var(--radius);color:var(--text);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .1s;flex-shrink:0;font-weight:500}
+  .qty-label{font-size:13px;color:var(--muted);white-space:nowrap}
+  .qty-display{flex:1;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--radius);font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:700;color:var(--purple);text-align:center;padding:6px 10px;cursor:pointer;min-height:44px}
+  .qty-display.off{color:var(--muted);cursor:default}
+  .qty-btn{width:44px;height:44px;background:var(--surface2);border:1.5px solid var(--border2);border-radius:var(--radius);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:500}
   .qty-btn:active{background:var(--border)}
+  .qty-btn:disabled{opacity:.35}
+  .small-hint{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.4}
 
-  .add-btn{width:100%;margin-top:10px;padding:12px;background:var(--odoo-purple);color:#fff;border:none;border-radius:var(--radius);font-family:'IBM Plex Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .15s,transform .1s}
-  .add-btn:active{opacity:.88;transform:scale(.99)}
-  .add-btn:disabled{opacity:.3;cursor:not-allowed}
+  .list-area{flex:1;overflow-y:auto;padding:12px 16px calc(84px + var(--sab));min-height:0}
+  .list-empty{text-align:center;color:var(--muted);font-size:13px;padding:30px 8px;line-height:1.5}
+  .sec-label{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;margin:4px 0 8px}
+  .card{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:9px 10px;margin-bottom:6px;box-shadow:var(--shadow)}
+  .card.current{border-color:var(--purple);box-shadow:0 0 0 2px rgba(113,75,103,.15)}
+  .card.unknown{border-color:#e9b3aa;background:var(--danger-bg)}
+  .card.tap{cursor:pointer}
+  .card.tap:active{background:var(--surface2)}
+  .c-info{flex:1;min-width:0}
+  .c-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .c-meta{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .c-note{font-size:11px;color:var(--warn);margin-top:2px}
+  .qty-chip{background:var(--purple);color:#fff;font-size:14px;font-weight:600;min-width:42px;height:36px;padding:0 8px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;font-family:'IBM Plex Mono',monospace;border:0}
+  .qty-chip.zero{background:var(--muted)}
+  .qty-unit{font-size:10px;color:var(--muted);text-align:center;margin-top:2px;max-width:70px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .del-btn{background:transparent;border:1px solid var(--border);color:var(--muted);font-size:13px;width:30px;height:30px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .del-btn:hover{color:var(--danger);border-color:var(--danger);background:var(--danger-bg)}
+  .mini-btn{border:1.5px solid var(--border2);background:var(--surface);border-radius:6px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0}
+  .mini-btn:active{background:var(--surface2)}
+  .plus{font-size:20px;color:var(--muted);width:30px;text-align:center;flex-shrink:0}
 
-  /* List area */
-  .list-area{flex:1;overflow-y:auto;padding:12px 16px 80px}
-  .list-empty{text-align:center;color:var(--muted);font-size:13px;padding:36px 0}
-  .list-section-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
-  .item-card{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;box-shadow:var(--shadow);animation:slideIn .16s ease}
-  @keyframes slideIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
-  .item-num{font-size:11px;color:var(--muted);min-width:20px;text-align:right;font-family:'IBM Plex Mono',monospace}
-  .item-info{flex:1;min-width:0}
-  .item-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
-  .item-barcode{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);margin-top:1px}
-  .item-qty{background:var(--odoo-purple);color:#fff;font-size:14px;font-weight:600;min-width:38px;height:36px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;font-family:'IBM Plex Mono',monospace}
-  .item-qty:hover{background:#5a3952}
-  .item-del{background:transparent;border:1px solid var(--border);color:var(--muted);font-size:14px;width:30px;height:30px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color .1s,border-color .1s,background .1s;flex-shrink:0}
-  .item-del:hover{color:var(--danger);border-color:var(--danger);background:#fdf3f2}
+  /* Packliste */
+  .pl-head{padding:14px 16px 12px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:baseline;gap:12px;flex-shrink:0}
+  .pl-title{font-size:17px;font-weight:700;flex:1}
+  .pl-meta{font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+  .progress{height:3px;background:var(--border);overflow:hidden;flex-shrink:0}
+  .progress>div{height:100%;background:var(--teal);transition:width .3s}
+  .pack-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+  .check{width:28px;height:28px;border:2px solid var(--border2);border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--surface)}
+  .check.done{background:var(--teal);border-color:var(--teal)}
+  .check.done::after{content:'✓';font-size:15px;color:#fff;font-weight:700}
+  .pack-name{font-size:15px;font-weight:600}
+  .pack-name.done{opacity:.4;text-decoration:line-through}
+  .pack-qty{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:var(--purple);text-align:right;line-height:1;cursor:pointer}
 
-  /* Picklist View */
-  #view-list{display:none;flex-direction:column;flex:1;overflow:hidden}
-  .packlist-header{padding:14px 16px 12px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:baseline;gap:12px;flex-shrink:0;box-shadow:0 2px 8px rgba(113,75,103,.05)}
-  .packlist-title{font-size:17px;font-weight:700;color:var(--text);flex:1}
-  .packlist-meta{font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
-  .packlist-scroll{flex:1;overflow-y:auto;padding:0 16px 80px}
-  .progress-bar-wrap{height:3px;background:var(--border);overflow:hidden;flex-shrink:0}
-  .progress-bar-fill{height:100%;background:var(--odoo-teal);transition:width .3s ease}
-  .pack-item{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--border)}
-  .pack-check{width:26px;height:26px;border:2px solid var(--border2);border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s;flex-shrink:0;background:var(--surface)}
-  .pack-check.done{background:var(--odoo-teal);border-color:var(--odoo-teal)}
-  .pack-check.done::after{content:'✓';font-size:14px;color:white;font-weight:700}
-  .pack-info{flex:1;min-width:0}
-  .pack-name{font-size:15px;font-weight:600;transition:opacity .2s,color .2s;color:var(--text)}
-  .pack-name.done{opacity:.4;text-decoration:line-through;color:var(--muted)}
-  .pack-code{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);margin-top:2px}
-  .pack-qty-badge{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:var(--odoo-purple);flex-shrink:0;min-width:36px;text-align:right;line-height:1}
-  .pack-unit{font-size:10px;color:var(--muted);text-align:right;margin-top:2px}
+  /* Inventur */
+  .inv-top{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .chip{display:inline-flex;align-items:center;gap:5px;border:1.5px solid var(--border2);border-radius:99px;padding:5px 11px;font-size:13px;background:var(--surface);cursor:pointer;max-width:100%}
+  .chip b{color:var(--purple);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
+  .chip.area{border-color:var(--purple);background:#f6f0f4}
+  .inv-progress{font-size:12px;color:var(--muted);margin-left:auto;font-family:'IBM Plex Mono',monospace}
+  .inv-progress b{color:var(--teal)}
+  .seg{display:flex;background:var(--surface2);border-radius:8px;padding:3px;gap:3px;margin-top:10px}
+  .seg button{flex:1;border:0;background:transparent;padding:7px 2px;border-radius:6px;font-size:12.5px;font-weight:500;color:var(--text2);cursor:pointer;white-space:nowrap}
+  .seg button.on{background:var(--surface);color:var(--purple);box-shadow:0 1px 3px rgba(0,0,0,.08);font-weight:600}
+  .segview{display:none;flex:1;flex-direction:column;overflow:hidden;min-height:0}
+  .segview.on{display:flex}
+  .inv-grid{display:flex;flex-direction:column;flex:1;min-height:0}
+  .inv-left{flex-shrink:0;padding:12px 16px 0}
+  .inv-right{display:flex;flex-direction:column;flex:1;min-height:0}
+  .toggle{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text2);margin-top:8px;cursor:pointer;user-select:none}
+  .toggle input{width:18px;height:18px;accent-color:var(--purple)}
+  .cur{margin-top:10px;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:10px 12px;display:flex;align-items:center;gap:10px;min-height:64px}
+  .cur.found{border-color:var(--teal);background:var(--teal-bg)}
+  .cur.unknown{border-color:#e07060;background:var(--danger-bg)}
+  .cur .big{font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:700;color:var(--purple);min-width:64px;text-align:center;cursor:pointer;background:var(--surface);border:1.5px solid var(--border2);border-radius:8px;padding:4px 8px}
+  .search-wrap{position:relative;margin:10px 16px 0}
+  .search{width:100%;background:var(--surface);border:1.5px solid var(--border2);border-radius:var(--radius);font-size:16px;padding:10px 38px 10px 12px;outline:none;color:var(--text)}
+  .search:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(113,75,103,.12)}
+  input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+  .search-clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:6px 8px}
+  .filter-chips{display:flex;gap:6px;overflow-x:auto;padding:10px 16px 2px;flex-shrink:0;scrollbar-width:none}
+  .filter-chips .chip{flex-shrink:0;font-size:12px;padding:4px 10px}
+  .filter-chips .chip.on{background:var(--purple);color:#fff;border-color:var(--purple)}
+  .filter-chips .chip.on b{color:#fff}
+  .group-h{font-size:12px;font-weight:700;color:var(--purple);margin:12px 0 6px;display:flex;justify-content:space-between}
+  .group-h span{color:var(--muted);font-weight:500}
 
-  /* Import View */
-  #view-import{display:none;flex-direction:column;flex:1;overflow:hidden}
-  .import-body{flex:1;overflow-y:auto;padding:16px}
-  .import-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;box-shadow:var(--shadow)}
-  .import-section-title{font-size:13px;font-weight:700;color:var(--odoo-purple);margin-bottom:10px}
-  .import-hint{font-size:12px;color:var(--text2);margin-bottom:8px;line-height:1.5}
-  code{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--odoo-purple)}
-  textarea.csv-area{width:100%;height:130px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--radius);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:12px;padding:10px 12px;resize:vertical;outline:none;transition:border-color .15s}
-  textarea.csv-area:focus{border-color:var(--odoo-purple)}
-  .import-btn{width:100%;padding:10px;background:var(--odoo-purple);border:none;color:#fff;border-radius:var(--radius);font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:opacity .15s;margin-top:8px}
-  .import-btn:hover{opacity:.9}
-  .import-status{margin-top:7px;font-size:12px;color:var(--muted);min-height:16px}
-  .import-status.ok{color:var(--odoo-teal)}.import-status.err{color:var(--danger)}
-  .field-row{display:flex;gap:8px}
-  .txt-field{flex:1;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--radius);color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:14px;padding:9px 11px;outline:none;transition:border-color .15s}
-  .txt-field:focus{border-color:var(--odoo-purple)}
-  .product-table{width:100%;border-collapse:collapse;font-size:12px}
-  .product-table th{text-align:left;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border);padding:6px 4px;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
-  .product-table td{padding:8px 4px;border-bottom:1px solid var(--border);vertical-align:middle;font-size:13px}
-  .product-table tr:last-child td{border-bottom:none}
-  .del-prod{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:3px 7px;border-radius:4px;transition:color .1s,background .1s}
-  .del-prod:hover{color:var(--danger);background:#fdf3f2}
-  .btn-row{display:flex;gap:8px;margin-top:4px}
-  .btn-sm{flex:1;padding:9px;border-radius:var(--radius);font-family:'IBM Plex Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;border:1.5px solid var(--border2);background:var(--surface);color:var(--text);transition:background .15s}
-  .btn-sm:hover{background:var(--surface2)}
-  .btn-sm.danger{border-color:#e07060;color:var(--danger)}
-  .btn-sm.danger:hover{background:#fdf3f2}
+  .box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;box-shadow:var(--shadow)}
+  .box-title{font-size:13px;font-weight:700;color:var(--purple);margin-bottom:8px}
+  .box p,.hint-text{font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:8px}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .stat{background:var(--surface2);border-radius:8px;padding:10px;text-align:center}
+  .stat b{display:block;font-family:'IBM Plex Mono',monospace;font-size:20px;color:var(--purple)}
+  .stat span{font-size:11px;color:var(--text2)}
+  table.t{width:100%;border-collapse:collapse;font-size:12.5px}
+  table.t th{text-align:left;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border);padding:5px 4px;font-size:11px}
+  table.t td{padding:7px 4px;border-bottom:1px solid var(--border);vertical-align:middle}
+  table.t tr:last-child td{border-bottom:none}
 
-  /* Bottom bar */
-  .bottom-bar{position:fixed;bottom:0;left:0;right:0;max-width:540px;margin:0 auto;padding:10px 16px 14px;background:var(--surface);border-top:1px solid var(--border);display:flex;gap:8px;box-shadow:0 -2px 8px rgba(113,75,103,.08)}
-  .bar-btn{flex:1;padding:10px;border-radius:var(--radius);font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:1.5px solid var(--border2);background:var(--surface);color:var(--text);transition:background .15s}
-  .bar-btn:hover{background:var(--surface2)}
-  .bar-btn.primary{background:var(--odoo-purple);color:#fff;border-color:var(--odoo-purple)}
-  .bar-btn.primary:hover{opacity:.9}
+  .btn{width:100%;padding:11px;background:var(--purple);border:none;color:#fff;border-radius:var(--radius);font-size:14px;font-weight:600;cursor:pointer;margin-top:8px}
+  .btn:active{opacity:.88}
+  .btn.sec{background:var(--surface);color:var(--text);border:1.5px solid var(--border2);font-weight:500}
+  .btn.danger{background:var(--surface);color:var(--danger);border:1.5px solid #e07060;font-weight:500}
+  .btn-row{display:flex;gap:8px}
+  .btn-row .btn{flex:1}
+  .field{width:100%;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--radius);font-size:16px;padding:9px 11px;outline:none;color:var(--text)}
+  .field:focus{border-color:var(--purple)}
+  .field-row{display:flex;gap:8px;flex-wrap:wrap}
+  .field-row .field{flex:1;min-width:110px}
+  textarea.field{height:110px;resize:vertical;font-family:'IBM Plex Mono',monospace;font-size:12px}
+  .status-line{margin-top:6px;font-size:12px;color:var(--muted);min-height:16px}
+  .status-line.ok{color:var(--teal)}.status-line.err{color:var(--danger)}
+  .check-line{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:var(--text2);margin-top:8px;cursor:pointer;line-height:1.4}
+  .check-line input{width:18px;height:18px;margin-top:1px;accent-color:var(--purple);flex-shrink:0}
+  .scroll{flex:1;overflow-y:auto;padding:12px 16px calc(84px + var(--sab));min-height:0}
+
+  .bottom-bar{position:fixed;bottom:0;left:0;right:0;max-width:var(--app-w);margin:0 auto;padding:10px 16px calc(12px + var(--sab));background:var(--surface);border-top:1px solid var(--border);display:flex;gap:8px;box-shadow:0 -2px 8px rgba(113,75,103,.08);z-index:50}
+  .bar-btn{flex:1;padding:10px 6px;border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer;border:1.5px solid var(--border2);background:var(--surface)}
+  .bar-btn.primary{background:var(--purple);color:#fff;border-color:var(--purple)}
   .bar-btn.danger{border-color:#e07060;color:var(--danger)}
-  .bar-btn.danger:hover{background:#fdf3f2}
 
-  /* Toast */
-  #toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--text);color:#fff;font-size:13px;font-weight:500;padding:8px 18px;border-radius:99px;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;white-space:nowrap;z-index:999;box-shadow:0 4px 16px rgba(44,36,56,.25)}
-  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  /* Overlays */
+  .overlay{position:fixed;inset:0;background:rgba(30,20,35,.5);z-index:200;display:flex;align-items:flex-end;justify-content:center}
+  .overlay.top{align-items:flex-start}
+  .sheet{background:var(--surface);width:100%;max-width:540px;border-radius:16px 16px 0 0;padding:18px 16px calc(18px + var(--sab));max-height:94dvh;overflow:auto;box-shadow:0 -4px 24px rgba(44,36,56,.18)}
+  .overlay.top .sheet{border-radius:0 0 16px 16px;padding-top:calc(14px + env(safe-area-inset-top,0px));max-height:80dvh;display:flex;flex-direction:column}
+  .sheet-title{font-size:15px;font-weight:700;margin-bottom:4px;text-align:center}
+  .sheet-sub{font-size:12.5px;color:var(--text2);text-align:center;margin-bottom:10px;min-height:16px}
+  .pad-display{font-family:'IBM Plex Mono',monospace;font-size:40px;font-weight:700;color:var(--purple);text-align:center;margin:4px 0 12px;min-height:52px;display:flex;align-items:center;justify-content:center;gap:6px;word-break:break-all}
+  .pad-display.bc{font-size:26px}
+  .pad-display .ph{color:var(--border2)}
+  .pad-display .u{font-size:15px;color:var(--muted);font-weight:500}
+  .pad-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+  .np{padding:15px 0;border-radius:var(--radius);background:var(--surface2);border:1.5px solid var(--border);font-family:'IBM Plex Mono',monospace;font-size:21px;font-weight:500;cursor:pointer}
+  .np:active{background:var(--border2)}
+  .np.fn{background:var(--surface);color:var(--text2)}
+  .np.clr{background:var(--danger-bg);color:var(--danger);border-color:#e8c8c3}
+  .pad-actions{display:flex;gap:8px}
+  .pad-actions button{flex:1;padding:13px 6px;border-radius:8px;font-size:15px;cursor:pointer;border:1.5px solid var(--border2);background:var(--surface)}
+  .pad-actions .p{flex:1.6;background:var(--purple);border-color:var(--purple);color:#fff;font-weight:600}
+  .pad-actions .s{background:var(--surface2);font-weight:600;color:var(--purple)}
+  .recent-areas{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .sheet-results{overflow-y:auto;margin-top:10px;flex:1;min-height:0}
 
+  #cam{background:#000;align-items:stretch;flex-direction:column}
+  #cam video{width:100%;height:100%;object-fit:cover}
+  .cam-frame{position:absolute;left:50%;top:45%;width:min(80vw,340px);height:130px;transform:translate(-50%,-50%);border:3px solid var(--teal);border-radius:10px;box-shadow:0 0 0 9999px rgba(0,0,0,.45)}
+  .cam-info{position:absolute;left:0;right:0;bottom:calc(90px + var(--sab));text-align:center;color:#fff;font-size:14px;text-shadow:0 1px 3px #000;padding:0 20px}
+  .cam-close{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(28px + var(--sab));background:#fff;border:0;border-radius:99px;padding:12px 26px;font-size:15px;font-weight:600;cursor:pointer}
+
+  #toast{position:fixed;bottom:calc(84px + var(--sab));left:50%;transform:translateX(-50%) translateY(16px);background:var(--text);color:#fff;font-size:13px;font-weight:500;padding:10px 16px;border-radius:14px;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;z-index:300;box-shadow:0 4px 16px rgba(44,36,56,.25);display:flex;gap:12px;align-items:center;max-width:calc(100vw - 32px)}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+  #toast button{background:none;border:0;color:#7fe0dd;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap}
+  #toast.err{background:var(--danger)}
+
+  #print-area{display:none}
+
+  /* Desktop / Tablet quer */
+  @media (min-width:900px){
+    :root{--app-w:1100px}
+    .inv-grid{flex-direction:row}
+    .inv-left{width:46%;padding:16px;border-right:1px solid var(--border);overflow-y:auto}
+    .inv-right{width:54%}
+    .overlay{align-items:center}
+    .sheet{border-radius:16px;max-width:420px}
+    .overlay.top{align-items:flex-start;padding-top:60px}
+    .overlay.top .sheet{max-width:620px;border-radius:16px}
+    .bar-btn,.card,.chip,.btn{transition:background .12s}
+    .card.tap:hover{border-color:var(--border2);background:#fbfafc}
+  }
   @media print{
-    header,.tabs,.scan-input-area,#view-scan,#view-import,.bottom-bar,#toast,.progress-bar-wrap{display:none!important}
-    #view-list{display:block!important}
-    body{background:white;color:black}
-    .packlist-header{box-shadow:none;border-bottom:2px solid #714B67}
-    .packlist-title{color:#714B67}
-    .pack-item{border-bottom:1px solid #ddd}
-    .pack-qty-badge{color:#714B67}
+    #app,.overlay,#toast,.bottom-bar{display:none!important}
+    #print-area{display:block;font-family:Arial,sans-serif;color:#000;padding:10mm}
+    #print-area h1{font-size:18pt;color:#714B67;margin-bottom:4pt}
+    #print-area h2{font-size:13pt;margin:14pt 0 4pt;color:#714B67}
+    #print-area .meta{font-size:9pt;color:#555;margin-bottom:10pt}
+    #print-area table{width:100%;border-collapse:collapse;font-size:10pt}
+    #print-area th,#print-area td{border-bottom:1px solid #ccc;padding:4pt;text-align:left}
+    #print-area td.n,#print-area th.n{text-align:right}
+    #print-area .box{display:inline-block;width:12pt;height:12pt;border:1px solid #333}
   }
 </style>
 </head>
@@ -167,594 +246,1043 @@
 <div id="app">
 
 <header>
-  <svg width="80" height="28" viewBox="0 0 80 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="14" cy="14" r="13" fill="white"/>
-    <circle cx="14" cy="14" r="7" fill="#714B67"/>
-    <text x="31" y="20" font-family="Arial,sans-serif" font-size="20" font-weight="800" fill="white" letter-spacing="-0.5">doo</text>
-  </svg>
-  <div class="header-title"><strong>Regalbestückung</strong></div>
-  <div id="db-count-header" style="font-size:11px;color:rgba(255,255,255,.6);white-space:nowrap;text-align:right"></div>
+  <svg width="74" height="26" viewBox="0 0 80 28" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="#fff"/><circle cx="14" cy="14" r="7" fill="#714B67"/><text x="31" y="20" font-family="Arial,sans-serif" font-size="20" font-weight="800" fill="#fff" letter-spacing="-0.5">doo</text></svg>
+  <div class="h-title">Hofladen</div>
+  <div id="h-meta"></div>
 </header>
-
-<div id="sync-status" style="text-align:center;font-size:11px;padding:4px 16px;background:var(--surface2);border-bottom:1px solid var(--border);color:var(--muted);flex-shrink:0">Produkte werden geladen…</div>
-
-<div class="tabs">
-  <div class="tab active" id="tab-scan" onclick="showTab('scan')">🔍 Scannen</div>
-  <div class="tab" id="tab-list" onclick="showTab('list')">📋 Packliste<span id="list-badge"></span></div>
-  <div class="tab" id="tab-import" onclick="showTab('import')">⚙ Produkte</div>
+<div id="sync-status">Produkte werden geladen…</div>
+<div class="banner" id="install-banner" hidden>
+  <span id="install-text"></span>
+  <button id="install-btn" hidden>Installieren</button>
+  <button data-act="dismissInstall">✕</button>
 </div>
 
-<!-- SCAN VIEW -->
-<div id="view-scan">
-  <div class="scan-input-area">
-    <div class="field-label">Barcode</div>
+<nav class="tabs">
+  <button class="tab active" data-tab="scan">🔍 Auffüllen</button>
+  <button class="tab" data-tab="list">📋 Packliste<span id="list-badge"></span></button>
+  <button class="tab" data-tab="inv">🔢 Inventur<span id="inv-badge"></span></button>
+  <button class="tab" data-tab="prod">⚙ Produkte</button>
+</nav>
+
+<!-- ═══ AUFFÜLLEN ═══ -->
+<section class="view active" id="view-scan">
+  <div class="panel">
+    <div class="label">Barcode</div>
     <div class="scan-row">
-      <input id="barcode-input" class="scan-field" type="text"
-             placeholder="Scannen oder eingeben …"
-             autocomplete="off" autocorrect="off" spellcheck="false" inputmode="none"
-             oninput="onBarcodeInput(this.value)" onkeydown="onBarcodeKey(event)">
-      <button class="cam-btn" id="kbd-btn" onclick="toggleKeyboard()" title="Manuell eingeben" style="background:var(--odoo-purple)">
-        🔢
-      </button>
-      <button class="cam-btn" id="cam-btn" onclick="toggleCamera()" title="Kamera scannen" style="display:none">
-        📷
-      </button>
+      <input id="pack-bc" class="scan-field" type="text" placeholder="Scannen …" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="none" enterkeyhint="go">
+      <button class="icon-btn" data-act="barcodePad" title="Barcode eintippen">🔢</button>
+      <button class="icon-btn light" data-act="openSearch" title="Produkt suchen">🔎</button>
+      <button class="icon-btn teal cam-only" data-act="openCamera" title="Mit Kamera scannen" hidden>📷</button>
     </div>
-
-    <!-- Kamera-Sucher (nur Android/BarcodeDetector) -->
-    <div id="cam-container">
-      <video id="cam-video" autoplay playsinline muted></video>
-      <div class="cam-overlay">
-        <div class="cam-finder"></div>
-      </div>
-      <div class="scan-flash" id="scan-flash"></div>
-      <div class="cam-hint">Barcode in den Rahmen halten</div>
-      <button class="cam-close" onclick="stopCamera()">✕ Schließen</button>
-    </div>
-
-    <div class="product-preview" id="preview">
-      <span class="hint">Barcode scannen → Produkt erscheint hier</span>
-    </div>
-
-    <!-- Kompakte Mengenanzeige → öffnet Modal -->
+    <div class="preview" id="pack-preview"><span class="hint">Scannen, eintippen (🔢) oder suchen (🔎)</span></div>
     <div class="qty-row">
-      <span style="font-size:13px;color:var(--muted)">Menge:</span>
-      <div id="qty-display" onclick="openMainQtyModal()"
-           style="flex:1;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--radius);font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:700;color:var(--odoo-purple);text-align:center;padding:8px 12px;cursor:pointer;transition:border-color .15s">0</div>
-      <button class="qty-btn" onclick="adjustQty(-1)" style="width:44px;height:44px">−</button>
-      <button class="qty-btn" onclick="adjustQty(+1)" style="width:44px;height:44px">+</button>
+      <span class="qty-label">In Packliste:</span>
+      <div class="qty-display off" id="pack-qty" data-act="packEditCurrent">–</div>
+      <button class="qty-btn" id="pack-minus" data-act="packAdj" data-d="-1" disabled>−</button>
+      <button class="qty-btn" id="pack-plus" data-act="packAdj" data-d="1" disabled>+</button>
     </div>
-    <input id="qty-input" type="hidden" value="0">
-    <button class="add-btn" id="add-btn" onclick="addItem()" disabled>+ Zur Packliste hinzufügen</button>
+    <div class="small-hint">Jeder Scan zählt +1 und steht sofort in der Packliste. Menge antippen zum Eintippen.</div>
   </div>
-  <div class="list-area" id="scan-list-area">
-    <div class="list-empty" id="scan-empty">Noch keine Artikel — Barcode scannen und Menge eingeben.</div>
-  </div>
-</div>
+  <div class="list-area" id="pack-recent"></div>
+</section>
 
-<!-- PICKLIST VIEW -->
-<div id="view-list">
-  <div class="packlist-header">
-    <div class="packlist-title">Packliste</div>
-    <div class="packlist-meta" id="pack-meta">–</div>
+<!-- ═══ PACKLISTE ═══ -->
+<section class="view" id="view-list">
+  <div class="pl-head"><div class="pl-title">Packliste</div><div class="pl-meta" id="pl-meta">–</div></div>
+  <div class="progress" id="pl-prog" hidden><div id="pl-fill" style="width:0"></div></div>
+  <div class="list-area" id="pl-scroll"></div>
+  <div class="bottom-bar" id="bar-list" hidden>
+    <button class="bar-btn" data-act="printPack">🖨 Drucken</button>
+    <button class="bar-btn" data-act="exportPack">⬇ CSV</button>
+    <button class="bar-btn danger" data-act="clearPack">🗑 Leeren</button>
   </div>
-  <div class="progress-bar-wrap" id="prog-wrap" style="display:none">
-    <div class="progress-bar-fill" id="prog-fill" style="width:0%"></div>
-  </div>
-  <div class="packlist-scroll" id="pack-scroll"></div>
-  <div class="bottom-bar" id="bar-list">
-    <button class="bar-btn" onclick="window.print()">🖨 Drucken</button>
-    <button class="bar-btn" onclick="downloadPickCSV()">⬇ CSV</button>
-    <button class="bar-btn danger" onclick="confirmClear()">🗑 Leeren</button>
-    <button class="bar-btn primary" onclick="showTab('scan')">← Zurück</button>
-  </div>
-</div>
+</section>
 
-<!-- IMPORT VIEW -->
-<div id="view-import">
-  <div class="import-body">
-    <div class="import-section">
-      <div class="import-section-title">📥 CSV aus Odoo importieren</div>
-      <div class="import-hint">Format: <code>barcode;produktname;einheit</code> — eine Zeile pro Produkt.<br>In Odoo: Lager → Konfiguration → Produktbarcodes → Export.<br>Die Einheit (z. B. <code>Stk.</code>, <code>kg</code>, <code>L</code>) ist optional.</div>
-      <textarea class="csv-area" id="csv-area" placeholder="4000539014923;Apfelsaft Bio 1L;L&#10;4005808231454;Erdbeermarmelade 450g;Stk.&#10;…"></textarea>
-      <div class="import-status" id="import-status"></div>
-      <button class="import-btn" onclick="importCSV()">✓ Importieren</button>
+<!-- ═══ INVENTUR ═══ -->
+<section class="view" id="view-inv">
+  <div class="panel" style="padding-bottom:10px">
+    <div class="inv-top">
+      <button class="chip area" data-act="setup">📍 <b id="inv-area">–</b> ✎</button>
+      <button class="chip" data-act="setup">👤 <b id="inv-who">–</b></button>
+      <div class="inv-progress" id="inv-progress"></div>
     </div>
-    <div class="import-section">
-      <div class="import-section-title">✏️ Produkt manuell hinzufügen</div>
+    <div class="seg" id="inv-seg">
+      <button data-seg="count" class="on">Zählen</button>
+      <button data-seg="list">Liste <span id="seg-list-n"></span></button>
+      <button data-seg="open">Offen <span id="seg-open-n"></span></button>
+      <button data-seg="done">Abschluss</button>
+    </div>
+  </div>
+
+  <!-- Zählen -->
+  <div class="segview on" id="seg-count">
+    <div class="inv-grid">
+      <div class="inv-left">
+        <div class="scan-row">
+          <input id="inv-bc" class="scan-field" type="text" placeholder="Scannen …" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="none" enterkeyhint="go">
+          <button class="icon-btn" data-act="barcodePad" title="Barcode eintippen">🔢</button>
+          <button class="icon-btn teal cam-only" data-act="openCamera" title="Mit Kamera scannen" hidden>📷</button>
+        </div>
+        <label class="toggle"><input type="checkbox" id="ask-qty"> Nach jedem Scan Menge eintippen (statt +1)</label>
+        <div class="cur" id="inv-cur"><span class="hint" style="color:var(--muted);font-size:13px">Barcode scannen oder unten nach Namen suchen.</span></div>
+      </div>
+      <div class="inv-right">
+        <div class="search-wrap">
+          <input id="inv-q" class="search" type="search" placeholder="Produkt suchen …" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
+          <button class="search-clear" data-act="clearInvQ" id="inv-q-clear" hidden>✕</button>
+        </div>
+        <div class="list-area" id="inv-results" style="padding-top:10px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Liste -->
+  <div class="segview" id="seg-list">
+    <div class="filter-chips" id="list-filter"></div>
+    <div class="scroll" id="inv-list"></div>
+  </div>
+
+  <!-- Offen -->
+  <div class="segview" id="seg-open">
+    <div class="search-wrap" style="margin-bottom:2px">
+      <input id="open-q" class="search" type="search" placeholder="Offene Produkte filtern …" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="scroll" id="open-list"></div>
+  </div>
+
+  <!-- Abschluss -->
+  <div class="segview" id="seg-done">
+    <div class="scroll" id="done-body">
+      <div class="box">
+        <div class="box-title">Stand der Inventur</div>
+        <div class="stats" id="done-stats"></div>
+        <div id="done-areas" style="margin-top:12px"></div>
+      </div>
+      <div class="box">
+        <div class="box-title">1 · Zählungen der anderen Geräte einlesen</div>
+        <p>Jedes Gerät exportiert seine <b>Zählliste</b> und schickt sie an ein Gerät (z. B. den Büro-Rechner). Dort hier einlesen. Doppelt eingelesene Dateien werden erkannt und nicht doppelt gezählt.</p>
+        <div class="btn-row">
+          <button class="btn sec" data-act="exportDetail">⬆ Meine Zählliste senden</button>
+          <button class="btn sec" data-act="pickMerge">⬇ Zähllisten einlesen</button>
+        </div>
+        <input type="file" id="merge-file" accept=".csv,text/csv" multiple hidden>
+        <div class="status-line" id="merge-status"></div>
+      </div>
+      <div class="box">
+        <div class="box-title">2 · Ergebnis für Odoo exportieren</div>
+        <p>Eine Zeile je Produkt, Mengen aus allen Bereichen und Geräten addiert. In Odoo unter <i>Lager → Vorgänge → Inventur</i> importieren und die Spalten zuordnen.</p>
+        <label class="check-line"><input type="checkbox" id="zero-open"> Nicht gezählte Produkte mit Menge 0 aufnehmen (nur bei Vollaufnahme und wenn die Produktliste nur lagergeführte Produkte enthält)</label>
+        <button class="btn" data-act="exportOdoo">⬇ Odoo-Datei exportieren</button>
+        <div class="btn-row">
+          <button class="btn sec" data-act="exportOpen">Offene Produkte (CSV)</button>
+          <button class="btn sec" data-act="printInv">🖨 Zählliste drucken</button>
+        </div>
+      </div>
+      <div class="box">
+        <div class="box-title">3 · Inventur beenden</div>
+        <p>Löscht alle Zählungen auf diesem Gerät. Vorher die Zählliste exportieren.</p>
+        <button class="btn danger" data-act="clearInv">Inventur auf diesem Gerät leeren</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ PRODUKTE ═══ -->
+<section class="view" id="view-prod">
+  <div class="scroll">
+    <div class="box">
+      <div class="box-title">Produktdatenbank</div>
+      <p id="prod-src">–</p>
+      <div class="search-wrap" style="margin:0">
+        <input id="prod-q" class="search" type="search" placeholder="Produkte durchsuchen …" autocomplete="off" spellcheck="false">
+      </div>
+      <div id="prod-table" style="margin-top:8px"></div>
+      <div class="btn-row">
+        <button class="btn sec" data-act="exportProducts">⬇ Produkte exportieren</button>
+        <button class="btn sec" data-act="reloadCSV">⟳ Neu laden</button>
+      </div>
+    </div>
+    <div class="box">
+      <div class="box-title">Produkt von Hand anlegen</div>
+      <p>Nur auf diesem Gerät. Dauerhaft für alle Geräte: in die <code>produkte.csv</code> auf GitHub aufnehmen.</p>
       <div class="field-row">
-        <input class="txt-field" id="new-bc" placeholder="Barcode" autocomplete="off" style="font-family:'IBM Plex Mono',monospace;font-size:13px;max-width:150px">
-        <input class="txt-field" id="new-name" placeholder="Produktname" autocomplete="off">
-        <input class="txt-field" id="new-unit" placeholder="Einheit" autocomplete="off" style="max-width:80px">
+        <input class="field mono" id="new-bc" placeholder="Barcode (optional)" autocomplete="off" inputmode="numeric">
+        <input class="field" id="new-name" placeholder="Produktname" autocomplete="off">
       </div>
-      <button class="import-btn" style="margin-top:8px" onclick="addManual()">+ Hinzufügen</button>
+      <div class="field-row" style="margin-top:8px">
+        <input class="field" id="new-unit" placeholder="Einheit (z. B. kg)" autocomplete="off">
+        <input class="field" id="new-ref" placeholder="Int. Referenz (optional)" autocomplete="off">
+      </div>
+      <button class="btn" data-act="addManual">+ Anlegen</button>
     </div>
-    <div class="import-section">
-      <div class="import-section-title">📦 Produktdatenbank (<span id="prod-count-label">0</span>)</div>
-      <div id="prod-empty" style="font-size:13px;color:var(--muted);padding:12px 0;text-align:center">Noch keine Produkte importiert.</div>
-      <table class="product-table" id="prod-table" style="display:none">
-        <thead><tr><th>Barcode</th><th>Produktname</th><th>Einheit</th><th></th></tr></thead>
-        <tbody id="prod-tbody"></tbody>
-      </table>
-      <div class="btn-row" style="margin-top:12px">
-        <button class="btn-sm" onclick="exportCSV()">⬇ Exportieren</button>
-        <button class="btn-sm danger" onclick="clearProducts()">🗑 Alle löschen</button>
-      </div>
+    <div class="box">
+      <div class="box-title">CSV-Datei einlesen (nur dieses Gerät)</div>
+      <p>Spalten mit Kopfzeile, getrennt durch Semikolon: <code>Barcode;Name;Einheit</code>, optional <code>Interne Referenz;Produktkategorie</code>. Produkte ohne Barcode werden übernommen.</p>
+      <div class="btn-row"><button class="btn sec" data-act="pickProductFile">Datei wählen …</button></div>
+      <input type="file" id="prod-file" accept=".csv,text/csv,text/plain" hidden>
+      <div class="status-line" id="import-status"></div>
+    </div>
+    <div class="box">
+      <div class="box-title">Einstellungen</div>
+      <div class="field-row"><input class="field" id="set-who" placeholder="Name des Zählers" autocomplete="off"></div>
+      <label class="check-line"><input type="checkbox" id="set-sound"> Töne beim Scannen (bekannt / unbekannt)</label>
+      <label class="check-line"><input type="checkbox" id="set-wake"> Bildschirm bleibt an, solange die App offen ist</label>
+      <p id="device-info" style="margin-top:10px;margin-bottom:0"></p>
     </div>
   </div>
-</div>
+</section>
 
 </div><!-- #app -->
 
-<!-- Mengen-Modal -->
-<div id="qty-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;align-items:flex-end;justify-content:center">
-  <div style="background:var(--surface);border-radius:16px 16px 0 0;padding:20px 18px 32px;width:100%;max-width:540px;box-shadow:0 -4px 24px rgba(44,36,56,.18)">
-    <div id="qty-modal-title" style="font-size:14px;font-weight:600;color:var(--text2);margin-bottom:12px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
-    <div id="qty-modal-display" style="font-family:'IBM Plex Mono',monospace;font-size:40px;font-weight:700;color:var(--odoo-purple);text-align:center;margin-bottom:14px;min-height:52px"></div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
-      <button class="np-btn" onclick="modalNp('1')">1</button>
-      <button class="np-btn" onclick="modalNp('2')">2</button>
-      <button class="np-btn" onclick="modalNp('3')">3</button>
-      <button class="np-btn" onclick="modalNp('4')">4</button>
-      <button class="np-btn" onclick="modalNp('5')">5</button>
-      <button class="np-btn" onclick="modalNp('6')">6</button>
-      <button class="np-btn" onclick="modalNp('7')">7</button>
-      <button class="np-btn" onclick="modalNp('8')">8</button>
-      <button class="np-btn" onclick="modalNp('9')">9</button>
-      <button class="np-btn np-clear" onclick="modalNp('C')">C</button>
-      <button class="np-btn" onclick="modalNp('0')">0</button>
-      <button class="np-btn np-del" onclick="modalNp('⌫')">⌫</button>
+<!-- Nummernblock -->
+<div class="overlay" id="pad" hidden>
+  <div class="sheet">
+    <div class="sheet-title" id="pad-title"></div>
+    <div class="sheet-sub" id="pad-sub"></div>
+    <div class="pad-display" id="pad-display"></div>
+    <div class="pad-grid">
+      <button class="np" data-pad="1">1</button><button class="np" data-pad="2">2</button><button class="np" data-pad="3">3</button>
+      <button class="np" data-pad="4">4</button><button class="np" data-pad="5">5</button><button class="np" data-pad="6">6</button>
+      <button class="np" data-pad="7">7</button><button class="np" data-pad="8">8</button><button class="np" data-pad="9">9</button>
+      <button class="np fn" data-pad="," id="pad-comma">,</button><button class="np" data-pad="0">0</button><button class="np fn" data-pad="⌫">⌫</button>
     </div>
-    <div style="display:flex;gap:8px">
-      <button onclick="modalCancel()" style="flex:1;padding:13px;border-radius:8px;border:1.5px solid var(--border2);background:var(--surface);font-family:'IBM Plex Sans',sans-serif;font-size:15px;cursor:pointer;color:var(--text)">Abbrechen</button>
-      <button onclick="modalOk()" style="flex:2;padding:13px;border-radius:8px;border:none;background:var(--odoo-purple);color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer">✓ Übernehmen</button>
+    <div class="pad-actions">
+      <button data-pad="cancel">Abbrechen</button>
+      <button class="np clr" data-pad="C" style="flex:.6">C</button>
+      <button class="s" data-pad="sec" id="pad-sec" hidden></button>
+      <button class="p" data-pad="ok" id="pad-ok">✓ Übernehmen</button>
     </div>
   </div>
 </div>
-<div id="toast"></div>
+
+<!-- Suche (Auffüllen) -->
+<div class="overlay top" id="search-sheet" hidden>
+  <div class="sheet">
+    <div class="search-wrap" style="margin:0;display:flex;gap:8px">
+      <input id="sheet-q" class="search" type="search" placeholder="Produkt suchen …" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
+      <button class="mini-btn" data-act="closeSearch">Schließen</button>
+    </div>
+    <div class="sheet-results" id="sheet-results"></div>
+  </div>
+</div>
+
+<!-- Inventur-Einstellung -->
+<div class="overlay" id="setup" hidden>
+  <div class="sheet">
+    <div class="sheet-title">Inventur: Wer zählt wo?</div>
+    <div class="sheet-sub">Der Bereich ist frei wählbar, z. B. „Laden Kühlregal" oder „Lager oben".</div>
+    <div class="label">Bereich</div>
+    <input class="field" id="setup-area" placeholder="Bereich eingeben" autocomplete="off" enterkeyhint="next">
+    <div class="recent-areas" id="setup-recent"></div>
+    <div class="label" style="margin-top:14px">Dein Name</div>
+    <input class="field" id="setup-who" placeholder="Name" autocomplete="off" enterkeyhint="done">
+    <div class="pad-actions" style="margin-top:16px">
+      <button data-act="closeSetup" id="setup-cancel">Abbrechen</button>
+      <button class="p" data-act="saveSetup">✓ Los geht's</button>
+    </div>
+  </div>
+</div>
+
+<!-- Kamera -->
+<div class="overlay" id="cam" hidden>
+  <video id="cam-video" autoplay playsinline muted></video>
+  <div class="cam-frame"></div>
+  <div class="cam-info" id="cam-info">Kamera startet …</div>
+  <button class="cam-close" data-act="closeCamera">Schließen</button>
+</div>
+
+<div id="toast"><span id="toast-msg"></span><button id="toast-btn" hidden></button></div>
+<div id="print-area"></div>
 
 <script>
-// ══ STATE ══
-let products={}, packItems=[], currentProduct=null;
-let scanCooldown=false, cameraActive=false, cameraStream=null, scanAnimFrame=null;
+'use strict';
+const APP_VERSION='v3.0';
+const CSV_URL='produkte.csv';
+const $=id=>document.getElementById(id);
 
-// ══ PERSIST ══
+// ═══════════ STATE ═══════════
+let products={};          // key -> {bc,name,unit,ref,cat,manual}
+let idx={bc:{},ref:{},name:{},sorted:[],text:{}};
+let packItems=[];         // {key,bc,name,unit,qty,done,unk}
+let inv=[];               // {id,key,bc,ref,name,unit,qty,area,who,dev,t,note,unk}
+let settings={};
+let tab='scan', seg='count', listFilter='';
+let packCurrent=null, invCurrentId=null;
+let productSource='–';
+
+// ═══════════ HELPERS ═══════════
+const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/ß/g,'ss');
+const round=n=>Math.round(n*1000)/1000;
+const fmt=n=>Number(n||0).toLocaleString('de-DE',{maximumFractionDigits:3});
+const csvNum=n=>String(round(n)).replace('.',',');
+const csvTxt=s=>{s=String(s??'');return /[;"\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
+const parseNum=s=>{s=String(s??'').trim();if(!s)return NaN;if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');return parseFloat(s)};
+const pad2=n=>String(n).padStart(2,'0');
+const fmtTime=t=>{const d=new Date(t);return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`};
+const fileStamp=()=>{const d=new Date();return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}_${pad2(d.getHours())}${pad2(d.getMinutes())}`};
+const slug=s=>norm(s).replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,24)||'geraet';
+const uid=()=>settings.device+'-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const isStandalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+const coarse=()=>matchMedia('(pointer:coarse)').matches;
+
+// ═══════════ SPEICHERN ═══════════
 function save(){
   try{
-    const pd=JSON.stringify(products);const pi=JSON.stringify(packItems);
-    localStorage.setItem('hfl_products',pd);
-    localStorage.setItem('hfl_pack',pi);
-    // Cookie als Backup (180 Tage, SameSite=Lax)
-    const exp=new Date();exp.setDate(exp.getDate()+180);
-    document.cookie='hfl_products='+encodeURIComponent(pd)+';expires='+exp.toUTCString()+';path=/;SameSite=Lax';
-    document.cookie='hfl_pack='+encodeURIComponent(pi)+';expires='+exp.toUTCString()+';path=/;SameSite=Lax';
-  }catch(e){}
+    localStorage.setItem('hfl3_products',JSON.stringify(products));
+    localStorage.setItem('hfl3_pack',JSON.stringify(packItems));
+    localStorage.setItem('hfl3_inv',JSON.stringify(inv));
+    localStorage.setItem('hfl3_settings',JSON.stringify(settings));
+  }catch(e){toast('⚠ Speichern fehlgeschlagen – Speicher voll?',{err:true})}
 }
-function getCookie(name){
-  const m=document.cookie.match('(?:^|; )'+name+'=([^;]*)');
-  return m?decodeURIComponent(m[1]):null;
-}
+function saveInv(){try{localStorage.setItem('hfl3_inv',JSON.stringify(inv))}catch(e){toast('⚠ Speichern fehlgeschlagen',{err:true})}}
+function savePack(){try{localStorage.setItem('hfl3_pack',JSON.stringify(packItems))}catch(e){}}
+function saveSettings(){try{localStorage.setItem('hfl3_settings',JSON.stringify(settings))}catch(e){}}
+function getCookie(n){const m=document.cookie.match('(?:^|; )'+n+'=([^;]*)');return m?decodeURIComponent(m[1]):null}
+function readJSON(k,fb){try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb}catch(e){return fb}}
+
 function load(){
+  settings=Object.assign({who:'',area:'',recentAreas:[],sound:true,wake:true,askQty:false,device:''},readJSON('hfl3_settings',{}));
+  if(!settings.device){settings.device='G'+Math.random().toString(36).slice(2,6).toUpperCase()}
+  products=readJSON('hfl3_products',null);
+  packItems=readJSON('hfl3_pack',null);
+  inv=readJSON('hfl3_inv',null);
+  // Migration aus v2
+  if(!products){
+    products={};
+    let old=null;try{old=JSON.parse(localStorage.getItem('hfl_products')||getCookie('hfl_products')||'null')}catch(e){}
+    if(old)for(const [bc,p] of Object.entries(old))products[bc]={bc,name:p.name,unit:p.unit||'',ref:'',cat:''};
+  }
+  if(!packItems){
+    packItems=[];
+    let old=null;try{old=JSON.parse(localStorage.getItem('hfl_pack')||getCookie('hfl_pack')||'null')}catch(e){}
+    if(old)packItems=old.map(i=>({key:i.barcode,bc:i.barcode,name:i.name,unit:i.unit||'',qty:i.qty,done:!!i.done}));
+  }
+  if(!inv){
+    inv=[];
+    let old=null;try{old=JSON.parse(localStorage.getItem('hfl_inv')||'null')}catch(e){}
+    if(old)inv=old.map(i=>({id:uid(),key:i.barcode,bc:i.barcode,ref:'',name:i.name,unit:i.unit||'',qty:i.qty,area:'(aus v2)',who:'',dev:settings.device,t:Date.parse((i.ts||'').replace(' ','T'))||Date.now(),note:''}));
+  }
+  // alte Cookies entfernen (zu groß, Safari löscht sie nach 7 Tagen)
+  ['hfl_products','hfl_pack','hfl_inv'].forEach(n=>document.cookie=n+'=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/');
+  rebuildIndex();
+  save();
+}
+
+// ═══════════ PRODUKTE ═══════════
+function rebuildIndex(){
+  idx={bc:{},ref:{},name:{},sorted:[],text:{}};
+  for(const [k,p] of Object.entries(products)){
+    if(p.bc)idx.bc[p.bc]=k;
+    if(p.ref)idx.ref[norm(p.ref)]=k;
+    idx.name[norm(p.name)]=k;
+    idx.text[k]=norm([p.name,p.bc,p.ref,p.cat].join(' '));
+  }
+  idx.sorted=Object.keys(products).sort((a,b)=>products[a].name.localeCompare(products[b].name,'de'));
+  renderHeader();
+}
+function findByCode(code){
+  code=String(code).trim();
+  if(idx.bc[code])return idx.bc[code];
+  if(code.length===12&&idx.bc['0'+code])return idx.bc['0'+code];
+  if(code.length===13&&code[0]==='0'&&idx.bc[code.slice(1)])return idx.bc[code.slice(1)];
+  if(idx.ref[norm(code)])return idx.ref[norm(code)];
+  return null;
+}
+function productKey(bc,ref,name){return bc||(ref?'ref:'+ref:'name:'+norm(name))}
+
+function parseCSV(text){
+  text=text.replace(/^﻿/,'');
+  const first=text.split(/\r?\n/,1)[0]||'';
+  const cnt=c=>first.split(c).length-1;
+  const delim=cnt(';')>=Math.max(cnt(','),cnt('\t'))&&cnt(';')>0?';':(cnt('\t')>cnt(',')?'\t':(cnt(',')>0?',':';'));
+  const rows=[];let row=[],f='',q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){if(c==='"'){if(text[i+1]==='"'){f+='"';i++}else q=false}else f+=c}
+    else if(c==='"'&&f.trim()===''){q=true;f=''}
+    else if(c===delim){row.push(f.trim());f=''}
+    else if(c==='\n'||c==='\r'){if(c==='\r'&&text[i+1]==='\n')i++;row.push(f.trim());rows.push(row);row=[];f=''}
+    else f+=c;
+  }
+  if(f!==''||row.length){row.push(f.trim());rows.push(row)}
+  return rows.filter(r=>r.some(x=>x!==''));
+}
+const PROD_HDR=[['cat',['kategorie','category']],['ref',['referenz','default_code','artikelnummer','artikel-nr']],['unit',['einheit','uom']],['bc',['barcode','ean','gtin']],['name',['name','produkt','bezeichnung','artikel']]];
+function mapHeader(row,spec){
+  const m={};
+  row.forEach((c,i)=>{const n=norm(c);for(const [k,keys] of spec){if(m[k]===undefined&&keys.some(x=>n.includes(x))){m[k]=i;return}}});
+  return m;
+}
+function rowsToProducts(rows){
+  if(!rows.length)return {list:[],dup:0};
+  let m=mapHeader(rows[0],PROD_HDR),start=1;
+  if(m.name===undefined||(m.bc===undefined&&m.unit===undefined&&m.ref===undefined)){m={bc:0,name:1,unit:2,ref:3,cat:4};start=0}
+  const list=[];const seen=new Set();let dup=0;
+  for(let r=start;r<rows.length;r++){
+    const row=rows[r];const g=k=>m[k]!==undefined?(row[m[k]]||'').trim():'';
+    const name=g('name');if(!name)continue;
+    const bc=g('bc').replace(/\s/g,''),ref=g('ref'),unit=g('unit'),cat=g('cat');
+    const key=productKey(bc,ref,name);
+    if(seen.has(key))dup++;seen.add(key);
+    list.push([key,{bc,name,unit,ref,cat}]);
+  }
+  return {list,dup};
+}
+
+async function loadCSV(manual){
+  const st=$('sync-status');st.hidden=false;
   try{
-    // Erst localStorage, dann Cookie als Fallback
-    let p=localStorage.getItem('hfl_products')||getCookie('hfl_products');
-    let pi=localStorage.getItem('hfl_pack')||getCookie('hfl_pack');
-    if(p)products=JSON.parse(p);
-    if(pi)packItems=JSON.parse(pi);
-    // Auch alten Key migrieren falls vorhanden
-    if(!p){const old=localStorage.getItem('hf3_products');if(old){products=JSON.parse(old);save();}}
+    st.textContent='⟳ Produkte werden geladen…';st.style.color='';
+    const res=await fetch(CSV_URL+'?t='+Date.now(),{cache:'no-store'});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const {list}=rowsToProducts(parseCSV(await res.text()));
+    if(!list.length)throw new Error('leer');
+    const next={};for(const [k,p] of list)next[k]=p;
+    for(const [k,p] of Object.entries(products))if(p.manual&&!next[k])next[k]=p;   // eigene Produkte behalten
+    products=next;rebuildIndex();save();
+    const noBc=list.filter(([,p])=>!p.bc).length;
+    productSource=`${list.length} Produkte aus produkte.csv${noBc?`, davon ${noBc} ohne Barcode`:''} · geladen ${fmtTime(Date.now())}`;
+    st.textContent=(navigator.onLine?'✓ ':'Offline · ')+list.length+' Produkte geladen';st.style.color='var(--teal)';
+    if(manual)toast('Produkte neu geladen');
+    setTimeout(()=>{st.hidden=true},3500);
+  }catch(e){
+    const n=Object.keys(products).length;
+    productSource=n?`${n} Produkte (lokal gespeichert, produkte.csv nicht erreichbar)`:'Keine Produkte – produkte.csv fehlt';
+    st.textContent=n?`Offline · ${n} Produkte (lokal)`:'⚠ Keine Produkte – produkte.csv in GitHub hochladen';
+    st.style.color=n?'var(--muted)':'#e07060';
+  }
+  renderHeader();if(tab==='prod')renderProducts();if(tab==='inv')renderInv();
+}
+
+function searchProducts(q,limit=60){
+  const toks=norm(q).split(/\s+/).filter(Boolean);if(!toks.length)return [];
+  const hits=[];
+  for(const k of idx.sorted){const s=idx.text[k];if(toks.every(t=>s.includes(t))){hits.push(k);if(hits.length>=400)break}}
+  const t0=toks[0];
+  hits.sort((a,b)=>{const ra=norm(products[a].name).startsWith(t0)?0:1,rb=norm(products[b].name).startsWith(t0)?0:1;return ra-rb});
+  return hits.slice(0,limit);
+}
+function prodMeta(p){return [p.bc||(p.ref?'Ref '+p.ref:'ohne Barcode'),p.unit].filter(Boolean).join(' · ')}
+
+// ═══════════ TÖNE / WACH HALTEN ═══════════
+let actx=null,wakeLock=null;
+function unlockAudio(){if(!actx){try{actx=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(actx&&actx.state==='suspended')actx.resume()}
+function beep(ok){
+  if(navigator.vibrate)try{navigator.vibrate(ok?35:[90,60,90])}catch(e){}
+  if(!settings.sound||!actx)return;
+  try{
+    const tones=ok?[[1760,0,.08]]:[[440,0,.13],[330,.17,.18]];
+    for(const [f,s,d] of tones){
+      const o=actx.createOscillator(),g=actx.createGain(),t=actx.currentTime+s;
+      o.type=ok?'sine':'square';o.frequency.value=f;
+      g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(ok?.25:.12,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+      o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+d+.03);
+    }
   }catch(e){}
 }
+async function keepAwake(){
+  if(!settings.wake||!('wakeLock' in navigator)||wakeLock||document.visibilityState!=='visible')return;
+  try{wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',()=>{wakeLock=null})}catch(e){}
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')keepAwake()});
+document.addEventListener('pointerdown',()=>{unlockAudio();keepAwake()},{passive:true});
 
-// ══ TABS ══
-function showTab(tab){
-  ['scan','list','import'].forEach(t=>{
-    document.getElementById('view-'+t).style.display='none';
-    document.getElementById('tab-'+t)?.classList.remove('active');
-  });
-  document.getElementById('view-'+tab).style.display='flex';
-  document.getElementById('tab-'+tab)?.classList.add('active');
-  if(tab==='scan'){setTimeout(()=>document.getElementById('barcode-input').focus(),80);renderScanList()}
-  if(tab==='list')renderPicklist();
-  if(tab==='import')renderProductTable();
-  if(tab!=='scan')stopCamera();
-  const bl=document.getElementById('bar-list');if(bl)bl.style.display=tab==='list'?'flex':'none';
-}
-
-// ══ TASTATUR TOGGLE ══
-function toggleKeyboard(){
-  const input=document.getElementById('barcode-input');
-  const btn=document.getElementById('kbd-btn');
-  const isNumeric=input.inputMode==='numeric';
-  if(isNumeric){
-    input.inputMode='none';
-    btn.style.background='var(--odoo-purple)';
-    btn.style.opacity='1';
-    input.blur();
-  } else {
-    input.inputMode='numeric';
-    btn.style.background='#5a3952';
-    btn.style.opacity='1';
-    input.focus();
-  }
-}
-
-// ══ KAMERA (nur wenn BarcodeDetector verfügbar) ══
-async function toggleCamera(){
-  if(cameraActive){stopCamera();return}
-  await startCamera();
-}
-
-async function startCamera(){
-  const container=document.getElementById('cam-container');
-  const btn=document.getElementById('cam-btn');
-  const video=document.getElementById('cam-video');
-  try{
-    cameraStream=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}
-    });
-    video.srcObject=cameraStream;
-    await video.play();
-    container.classList.add('open');
-    btn.classList.add('active');
-    btn.textContent='⏹';
-    cameraActive=true;
-    const detector=new BarcodeDetector({
-      formats:['ean_13','ean_8','code_128','code_39','upc_a','upc_e','qr_code']
-    });
-    function detect(){
-      if(!cameraActive)return;
-      if(video.readyState>=2&&!scanCooldown){
-        detector.detect(video).then(codes=>{
-          if(codes.length&&!scanCooldown)onCameraScan(codes[0].rawValue);
-        }).catch(()=>{});
-      }
-      scanAnimFrame=requestAnimationFrame(detect);
-    }
-    scanAnimFrame=requestAnimationFrame(detect);
-  }catch(err){
-    let msg='Kamera konnte nicht geöffnet werden.';
-    if(err.name==='NotAllowedError')msg='Kamerazugriff verweigert – bitte in den Einstellungen erlauben.';
-    toast(msg);
-    stopCamera();
-  }
-}
-
-function onCameraScan(code){
-  if(!code||scanCooldown)return;
-  scanCooldown=true;
-  const flash=document.getElementById('scan-flash');
-  flash.classList.add('flash');
-  setTimeout(()=>flash.classList.remove('flash'),200);
-  try{
-    const ctx=new(window.AudioContext||window.webkitAudioContext)();
-    const osc=ctx.createOscillator();const g=ctx.createGain();
-    osc.connect(g);g.connect(ctx.destination);
-    osc.frequency.value=1800;g.gain.setValueAtTime(.3,ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.12);
-    osc.start();osc.stop(ctx.currentTime+.12);
-    setTimeout(()=>ctx.close(),200);
-  }catch(e){}
-  document.getElementById('barcode-input').value=code;
-  lookupBarcode(code);
-  stopCamera();
-  setTimeout(()=>{scanCooldown=false;},400);
-}
-
-function stopCamera(){
-  if(scanAnimFrame){cancelAnimationFrame(scanAnimFrame);scanAnimFrame=null;}
-  if(cameraStream){cameraStream.getTracks().forEach(t=>t.stop());cameraStream=null;}
-  const video=document.getElementById('cam-video');
-  if(video)video.srcObject=null;
-  document.getElementById('cam-container').classList.remove('open');
-  const btn=document.getElementById('cam-btn');
-  if(btn){btn.classList.remove('active');btn.textContent='📷';}
-  cameraActive=false;
-}
-
-// Kamera-Button nur einblenden wenn BarcodeDetector verfügbar
-if('BarcodeDetector' in window){
-  document.getElementById('cam-btn').style.display='flex';
-}
-
-// ══ BARCODE EINGABE ══
-// Kein live-lookup bei oninput — Scanner schickt alle Zeichen + Enter schnell hintereinander
-// Wir werten nur Enter aus um Zwischenzustände zu vermeiden
-function onBarcodeInput(val){
-  // absichtlich leer — Auswertung nur bei Enter
-}
-function onBarcodeKey(e){
-  if(e.key==='Enter'){
-    const v=document.getElementById('barcode-input').value.trim();
-    document.getElementById('barcode-input').value='';
-    if(!v){e.preventDefault();return;}
-
-    if(currentProduct && v===currentProduct.barcode){
-      // Gleicher Barcode → Menge um 1 erhöhen
-      adjustQty(+1);
-    } else {
-      // Neuer Barcode → aktuellen Artikel erst in Packliste schreiben
-      if(currentProduct){
-        // Menge sichern bevor addItem sie zurücksetzt
-        const qty=Math.max(1,getQty());
-        addItemDirect(currentProduct, qty);
-      }
-      // Neues Produkt laden, Menge auf 1
-      lookupBarcode(v);
-      setQty(1);
-    }
-    e.preventDefault();
-  }
-}
-
-// Direktes Hinzufügen ohne Reset-Seiteneffekte von addItem()
-function addItemDirect(product, qty){
-  const ex=packItems.find(i=>i.barcode===product.barcode);
-  if(ex){ex.qty+=qty;}
-  else{packItems.push({barcode:product.barcode,name:product.name,unit:product.unit||'',qty,done:false});}
-  save();updateBadge();renderScanList();
-}
-
-function lookupBarcode(code){
-  const p=document.getElementById('preview');
-  if(!code){
-    currentProduct=null;p.className='product-preview';
-    p.innerHTML='<span class="hint">Barcode scannen → Produkt erscheint hier</span>';
-    document.getElementById('add-btn').disabled=true;return;
-  }
-  const prod=products[code];
-  if(prod){
-    currentProduct={barcode:code,name:prod.name,unit:prod.unit||''};p.className='product-preview found';
-    const unitBadge=prod.unit?`<span style="background:var(--odoo-teal);color:#fff;font-size:11px;font-weight:600;padding:2px 7px;border-radius:99px;white-space:nowrap">${esc(prod.unit)}</span>`:'';
-    p.innerHTML=`<div class="status-dot dot-ok">✓</div><span class="pname">${esc(prod.name)}</span>${unitBadge}<span class="pcode">${esc(code)}</span>`;
-  } else {
-    currentProduct={barcode:code,name:'(Unbekanntes Produkt)',unit:''};p.className='product-preview notfound';
-    p.innerHTML=`<div class="status-dot dot-err">?</div><span class="pname" style="color:var(--muted);font-style:italic">(Unbekannt)</span><span class="pcode">${esc(code)}</span>`;
-  }
-  document.getElementById('add-btn').disabled=false;
-}
-
-function onQtyKey(e){}
-function getQty(){return parseInt(document.getElementById('qty-input').value)||0}
-function setQty(n){
-  const v=Math.max(0,n);
-  document.getElementById('qty-input').value=v;
-  document.getElementById('qty-display').textContent=v||'0';
-}
-function adjustQty(d){setQty(getQty()+d)}
-
-function openMainQtyModal(){
-  showQtyModal(
-    currentProduct?currentProduct.name:'Menge eingeben',
-    getQty()||1,
-    (newQty)=>setQty(newQty)
-  );
-}
-
-// ══ MENGEN-MODAL ══
-let modalCallback=null;
-let modalValue='0';
-
-function showQtyModal(title, currentQty, callback){
-  modalCallback=callback;
-  modalValue=String(currentQty||0);
-  document.getElementById('qty-modal-title').textContent=title;
-  document.getElementById('qty-modal-display').textContent=modalValue;
-  document.getElementById('qty-modal').style.display='flex';
-}
-function modalNp(key){
-  if(key==='C'){modalValue='0';}
-  else if(key==='⌫'){modalValue=modalValue.length<=1?'0':modalValue.slice(0,-1);}
-  else{modalValue=modalValue==='0'?key:modalValue+key;}
-  document.getElementById('qty-modal-display').textContent=modalValue;
-}
-function modalOk(){
-  const n=parseInt(modalValue)||0;
-  if(n>0&&modalCallback)modalCallback(n);
-  document.getElementById('qty-modal').style.display='none';
-  modalCallback=null;
-}
-function modalCancel(){
-  document.getElementById('qty-modal').style.display='none';
-  modalCallback=null;
-}
-
-// ══ ARTIKEL HINZUFÜGEN (manueller Button) ══
-function addItem(){
-  if(!currentProduct)return;
-  const qty=Math.max(1,getQty());
-  addItemDirect(currentProduct, qty);
-  toast(`„${currentProduct.name}" hinzugefügt`);
-  // Reset
-  document.getElementById('barcode-input').value='';
-  setQty(0);
-  currentProduct=null;
-  const p=document.getElementById('preview');p.className='product-preview';
-  p.innerHTML='<span class="hint">Barcode scannen → Produkt erscheint hier</span>';
-  document.getElementById('add-btn').disabled=true;
-  document.getElementById('barcode-input').focus();
-}
-
-// ══ SCAN-LISTE ══
-function renderScanList(){
-  const area=document.getElementById('scan-list-area');const empty=document.getElementById('scan-empty');
-  area.querySelectorAll('.item-card,.list-section-label').forEach(el=>el.remove());
-  if(!packItems.length){empty.style.display='block';return}
-  empty.style.display='none';
-  const lbl=document.createElement('div');lbl.className='list-section-label';
-  lbl.textContent=`${packItems.length} Artikel erfasst`;area.appendChild(lbl);
-  [...packItems].reverse().forEach((item,ri)=>{
-    const idx=packItems.length-1-ri;
-    const card=document.createElement('div');card.className='item-card';card.dataset.idx=idx;
-    const unitLabel=item.unit?`, ${esc(item.unit)}`:'';
-    card.innerHTML=`<span class="item-num">${idx+1}</span><div class="item-info"><div class="item-name">${esc(item.name)}${unitLabel}</div><div class="item-barcode">${esc(item.barcode)}</div></div><div class="item-qty" onclick="editQty(${idx})">${item.qty}</div><button class="item-del" onclick="removeItem(${idx})">✕</button>`;
-    area.appendChild(card);
-  });updateBadge();
-}
-function removeItem(idx){packItems.splice(idx,1);save();renderScanList()}
-function editQty(idx){
-  showQtyModal(
-    packItems[idx].name,
-    packItems[idx].qty,
-    (newQty)=>{
-      packItems[idx].qty=newQty;
-      save();renderScanList();
-    }
-  );
-}
-
-// ══ PICKLISTE ══
-function renderPicklist(){
-  const scroll=document.getElementById('pack-scroll');const meta=document.getElementById('pack-meta');
-  const prog=document.getElementById('prog-wrap');const fill=document.getElementById('prog-fill');
-  scroll.innerHTML='';
-  if(!packItems.length){scroll.innerHTML='<div style="text-align:center;color:var(--muted);padding:40px 0;font-size:13px">Packliste ist leer.</div>';meta.textContent='–';prog.style.display='none';return}
-  const total=packItems.reduce((s,i)=>s+i.qty,0);const done=packItems.filter(i=>i.done).length;
-  meta.textContent=`${done}/${packItems.length} erledigt · ${total} Stk.`;
-  prog.style.display='block';fill.style.width=(done/packItems.length*100).toFixed(1)+'%';
-  packItems.forEach((item,idx)=>{
-    const row=document.createElement('div');row.className='pack-item';
-    row.innerHTML=`<div class="pack-check ${item.done?'done':''}" onclick="toggleDone(${idx})"></div><div class="pack-info"><div class="pack-name ${item.done?'done':''}">${esc(item.name)}</div><div class="pack-code">${esc(item.barcode)}</div></div><div style="display:flex;align-items:center;gap:8px"><div><div class="pack-qty-badge">${item.qty}</div><div class="pack-unit">${esc(item.unit||'Stk.')}</div></div><button class="item-del" onclick="removePackItem(${idx})" style="flex-shrink:0">🗑</button></div>`;
-    scroll.appendChild(row);
-  });updateBadge();
-}
-function toggleDone(idx){packItems[idx].done=!packItems[idx].done;save();renderPicklist()}
-function removePackItem(idx){packItems.splice(idx,1);save();renderPicklist();}
-function updateBadge(){document.getElementById('list-badge').textContent=packItems.length?` (${packItems.length})`:''}
-function confirmClear(){if(!packItems.length)return;if(confirm('Packliste wirklich leeren?')){packItems=[];save();renderPicklist();renderScanList()}}
-
-function downloadPickCSV(){
-  if(!packItems.length){toast('Packliste ist leer');return}
-  const now=new Date();
-  const dateStr=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-  const timeStr=String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0');
-  const header='Barcode;Produktname;Einheit;Menge;Erledigt';
-  const rows=packItems.map(i=>
-    `${i.barcode};"${i.name.replace(/"/g,'""')}";${i.unit||''};${i.qty};${i.done?'ja':'nein'}`
-  );
-  const csv=header+'\n'+rows.join('\n');
-  const a=document.createElement('a');
-  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
-  a.download=`inventur_${dateStr}_${timeStr}.csv`;
-  a.click();
-  toast('CSV heruntergeladen');
-}
-
-// ══ PRODUKTDATENBANK ══
-function renderProductTable(){
-  const tbody=document.getElementById('prod-tbody');const empty=document.getElementById('prod-empty');const table=document.getElementById('prod-table');const count=document.getElementById('prod-count-label');
-  const entries=Object.entries(products);count.textContent=entries.length;
-  setProductCount(entries.length);
-  tbody.innerHTML='';
-  if(!entries.length){empty.style.display='block';table.style.display='none';return}
-  empty.style.display='none';table.style.display='table';
-  entries.forEach(([bc,prod])=>{const tr=document.createElement('tr');tr.innerHTML=`<td style="font-family:'IBM Plex Mono',monospace;color:var(--muted);font-size:11px">${esc(bc)}</td><td style="font-weight:500">${esc(prod.name)}</td><td style="color:var(--text2)">${esc(prod.unit||'–')}</td><td><button class="del-prod" data-bc="${esc(bc)}">✕</button></td>`;tbody.appendChild(tr)});
-}
-function importCSV(){
-  const raw=document.getElementById('csv-area').value.trim();const status=document.getElementById('import-status');
-  if(!raw){status.className='import-status err';status.textContent='Bitte CSV-Daten einfügen.';return}
-  let count=0,skip=0;
-  raw.split(/\r?\n/).filter(l=>l.trim()).forEach((line,i)=>{
-    const parts=line.split(';');if(parts.length<2){skip++;return}
-    const bc=parts[0].trim().replace(/^["']|["']$/g,'');
-    const name=parts[1].trim().replace(/^["']|["']$/g,'');
-    const unit=(parts[2]||'').trim().replace(/^["']|["']$/g,'');
-    if(!bc||!name){skip++;return}
-    if(i===0&&(bc.toLowerCase().includes('barcode')||bc.toLowerCase().includes('code')))return;
-    products[bc]={name,unit};count++;
-  });
-  save();renderProductTable();
-  if(count>0){status.className='import-status ok';status.textContent=`✓ ${count} Produkte importiert${skip?`, ${skip} übersprungen`:''}.`;document.getElementById('csv-area').value=''}
-  else{status.className='import-status err';status.textContent='Keine gültigen Einträge. Format: barcode;produktname;einheit'}
-}
-function addManual(){
-  const bc=document.getElementById('new-bc').value.trim();const name=document.getElementById('new-name').value.trim();const unit=document.getElementById('new-unit').value.trim();
-  if(!bc||!name){toast('Barcode und Name angeben!');return}
-  products[bc]={name,unit};save();renderProductTable();
-  document.getElementById('new-bc').value='';document.getElementById('new-name').value='';document.getElementById('new-unit').value='';toast('Produkt hinzugefügt');
-}
-document.getElementById('prod-tbody').addEventListener('click',e=>{const btn=e.target.closest('.del-prod');if(btn){const bc=btn.getAttribute('data-bc');delete products[bc];save();renderProductTable()}});
-function clearProducts(){if(!confirm('Alle Produkte löschen?'))return;products={};save();renderProductTable();setProductCount(0)}
-function exportCSV(){
-  const entries=Object.entries(products);if(!entries.length){toast('Keine Produkte');return}
-  const csv='barcode;produktname;einheit\n'+entries.map(([bc,p])=>`${bc};${p.name};${p.unit||''}`).join('\n');
-  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='hofladen-produkte.csv';a.click();
-}
-
-const APP_VERSION='v2.0';
-function setProductCount(n){
-  document.getElementById('db-count-header').innerHTML=
-    `<div>${n} Produkte</div><div style="color:rgba(255,255,255,.35);font-size:10px">${APP_VERSION}</div>`;
-}
-
-function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+// ═══════════ TOAST ═══════════
 let toastTimer;
-function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2400)}
+function toast(msg,opt={}){
+  const t=$('toast'),b=$('toast-btn');
+  $('toast-msg').textContent=msg;t.classList.toggle('err',!!opt.err);
+  if(opt.action){b.hidden=false;b.textContent=opt.action;b.onclick=()=>{opt.fn();t.classList.remove('show')}}else{b.hidden=true;b.onclick=null}
+  t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),opt.action?5000:2600);
+}
 
+// ═══════════ DATEI EXPORT (Teilen auf Handy, Download am PC) ═══════════
+async function exportFile(name,text){
+  const blob=new Blob(['﻿'+text],{type:'text/csv;charset=utf-8'});
+  if(coarse()&&navigator.canShare){
+    try{
+      const file=new File([blob],name,{type:'text/csv'});
+      if(navigator.canShare({files:[file]})){await navigator.share({files:[file],title:name});return}
+    }catch(e){if(e.name==='AbortError')return}
+  }
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');
+  a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+  toast('Gespeichert: '+name);
+}
+function printHTML(html){$('print-area').innerHTML=html;setTimeout(()=>window.print(),50)}
 
+// ═══════════ TABS ═══════════
+function showTab(t){
+  tab=t;
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));
+  ['scan','list','inv','prod'].forEach(v=>$('view-'+v).classList.toggle('active',v===t));
+  closeCamera();
+  if(t==='scan'){renderPack();focusScan()}
+  if(t==='list')renderPackList();
+  if(t==='inv'){renderInv();if(!settings.who||!settings.area)openSetup(true);else focusScan()}
+  if(t==='prod')renderProducts();
+  updateBars();
+}
+function updateBars(){
+  $('bar-list').hidden=!(tab==='list'&&packItems.length);
+}
+function scanFieldFor(){return tab==='scan'?$('pack-bc'):(tab==='inv'&&seg==='count'?$('inv-bc'):null)}
+function focusScan(){const f=scanFieldFor();if(f&&!anyOverlay())setTimeout(()=>{if(!anyOverlay()&&document.activeElement?.tagName!=='INPUT')f.focus({preventScroll:true})},60)}
+function anyOverlay(){return [...document.querySelectorAll('.overlay')].some(o=>!o.hidden)}
 
-// Fokus halten wenn nicht in Textfeldern oder interaktiven Elementen
+// ═══════════ NUMMERNBLOCK ═══════════
+let pad=null;
+function showPad(o){
+  document.activeElement?.blur?.();
+  pad=Object.assign({mode:'qty',value:'',decimals:true,allowZero:false,unit:'',placeholder:'0'},o);
+  $('pad-title').textContent=pad.title||'';
+  $('pad-sub').textContent=pad.sub||'';
+  $('pad-ok').textContent=pad.okLabel||'✓ Übernehmen';
+  $('pad-sec').hidden=!pad.onSec;$('pad-sec').textContent=pad.secLabel||'';
+  $('pad-comma').textContent=pad.decimals?',':'';$('pad-comma').disabled=!pad.decimals;
+  $('pad-display').classList.toggle('bc',pad.mode==='barcode');
+  renderPad();$('pad').hidden=false;
+}
+function renderPad(){
+  const v=pad.value;
+  $('pad-display').innerHTML=(v?esc(v):`<span class="ph">${esc(pad.placeholder)}</span>`)+(pad.unit&&pad.mode==='qty'?`<span class="u">${esc(pad.unit)}</span>`:'');
+}
+function padKey(k){
+  if(!pad)return;let v=pad.value;
+  if(k==='C')v='';
+  else if(k==='⌫')v=v.slice(0,-1);
+  else if(k===','){if(!pad.decimals||v.includes(','))return;v=(v||'0')+','}
+  else if(/^\d$/.test(k)){
+    if(pad.mode==='barcode'){if(v.length>=32)return;v+=k}
+    else{v=(v==='0')?k:v+k;const [i,d]=v.split(',');if(i.length>7||(d&&d.length>3))return}
+  }else return;
+  pad.value=v;renderPad();
+}
+function closePad(){$('pad').hidden=true;pad=null;focusScan()}
+function padSubmit(which){
+  if(!pad)return;const p=pad;const v=p.value;
+  if(p.mode==='barcode'){closePad();if(v)handleScan(v);return}
+  if(v===''){closePad();return}
+  const n=round(parseNum(v));
+  if(isNaN(n)||(n===0&&!p.allowZero)){closePad();return}
+  closePad();
+  (which==='sec'?p.onSec:p.onOk)(n);
+}
+
+// ═══════════ TASTATUR & SCANNER ═══════════
+// Bluetooth-/USB-Scanner tippen sehr schnell und schicken Enter. Das erkennen wir unabhängig davon, welches Feld Fokus hat.
+const keyLog=[];
+function takeBurst(now){
+  let i=keyLog.length-1;
+  if(i<0||now-keyLog[i].t>150){keyLog.length=0;return null}
+  let j=i;while(j>0&&keyLog[j].t-keyLog[j-1].t<60)j--;
+  const code=keyLog.slice(j,i+1).map(x=>x.k).join('');
+  const before=keyLog[j].v;keyLog.length=0;
+  return(code.length>=6&&/\d/.test(code))?{code,before}:null;
+}
+document.addEventListener('keydown',e=>{
+  const now=performance.now();
+  if(e.key&&e.key.length===1&&!e.ctrlKey&&!e.metaKey&&!e.altKey){keyLog.push({k:e.key,t:now,v:pad?pad.value:null});if(keyLog.length>80)keyLog.splice(0,40)}
+  if(e.key==='Enter'){onEnter(e,takeBurst(now));return}
+  if(pad){
+    if(/^\d$/.test(e.key))padKey(e.key);
+    else if(e.key===','||e.key==='.')padKey(',');
+    else if(e.key==='Backspace')padKey('⌫');
+    else if(e.key==='Delete')padKey('C');
+    else if(e.key==='Escape')closePad();
+    else return;
+    e.preventDefault();return;
+  }
+  if(e.key==='Escape'){closeSearch();closeSetup();closeCamera();return}
+  const ae=document.activeElement;
+  const typing=ae&&(ae.tagName==='TEXTAREA'||(ae.tagName==='INPUT'&&!ae.classList.contains('scan-field')));
+  if(e.key==='/'&&!typing){
+    if(tab==='inv'&&seg==='count'){e.preventDefault();$('inv-q').focus()}
+    else if(tab==='scan'){e.preventDefault();openSearch()}
+  }
+});
+function onEnter(e,burst){
+  const ae=document.activeElement;
+  if(pad){
+    e.preventDefault();
+    if(burst){
+      if(pad.mode==='barcode'){pad.value=burst.code;padSubmit('ok');return}
+      pad.value=burst.before||'';padSubmit('ok');handleScan(burst.code);return;
+    }
+    padSubmit('ok');return;
+  }
+  if(ae&&ae.classList.contains('scan-field')){
+    // Springt der Fokus mitten im Scan ins Feld, steht nur der Rest drin – der Tastenpuffer hat den ganzen Code
+    e.preventDefault();const v=ae.value.trim();ae.value='';
+    const code=(burst&&v&&burst.code.endsWith(v))?burst.code:(v||(burst?burst.code:''));
+    if(code)handleScan(code);return;
+  }
+  if(burst&&(tab==='scan'||tab==='list'||tab==='inv')&&$('setup').hidden){
+    e.preventDefault();
+    if(ae&&typeof ae.value==='string'&&ae.value.endsWith(burst.code)){ae.value=ae.value.slice(0,-burst.code.length);ae.dispatchEvent(new Event('input',{bubbles:true}))}
+    if(!$('search-sheet').hidden)closeSearch();
+    handleScan(burst.code);return;
+  }
+  if(ae&&ae.id==='inv-q'){e.preventDefault();const k=searchProducts(ae.value,1)[0];if(k){ae.blur();invPick(k)}return}
+  if(ae&&ae.id==='sheet-q'){e.preventDefault();const k=searchProducts(ae.value,1)[0];if(k){closeSearch();packPick(k)}return}
+  if(ae&&(ae.id==='setup-area')){e.preventDefault();$('setup-who').focus();return}
+  if(ae&&(ae.id==='setup-who')){e.preventDefault();saveSetup();return}
+}
+function handleScan(code){
+  code=String(code).trim();if(!code)return;
+  if(tab==='inv'){if(seg!=='count')setSeg('count');invScan(code)}
+  else if(tab==='scan'||tab==='list')packScan(code);
+}
+
+// Antippen einer leeren Fläche → Scan-Feld bekommt wieder den Fokus (für Bluetooth-Scanner)
 document.addEventListener('click',e=>{
-  const skipIds=['qty-input','qty-display','csv-area','new-bc','new-name','new-unit','barcode-input'];
-  const skipClasses=['cam-btn','item-qty','pack-check','qty-btn','bar-btn','btn-sm','import-btn','add-btn','item-del','del-prod'];
-  const skipTags=['BUTTON','SELECT','TEXTAREA'];
-  if(skipIds.includes(e.target.id)) return;
-  if(skipClasses.some(c=>e.target.classList.contains(c))) return;
-  if(skipTags.includes(e.target.tagName)) return;
-  if(e.target.id==='kbd-btn') return;
-  if(document.getElementById('view-scan').style.display!=='none'&&!cameraActive)
-    setTimeout(()=>document.getElementById('barcode-input').focus(),50);
+  if(e.target.closest('input,textarea,select,button,label,a,[data-act],.overlay,.chip'))return;
+  focusScan();
 });
 
-// ══ CSV AUTO-LOAD von GitHub ══
-const CSV_URL='produkte.csv'; // liegt im selben Repository wie index.html
-
-async function loadCSVFromGitHub(){
-  const status=document.getElementById('sync-status');
-  try{
-    status.textContent='⟳ Produkte werden geladen…';
-    const res=await fetch(CSV_URL+'?t='+Date.now()); // Cache umgehen
-    if(!res.ok)throw new Error('HTTP '+res.status);
-    const text=await res.text();
-    let count=0;
-    const newProducts={};
-    text.split(/\r?\n/).filter(l=>l.trim()).forEach((line,i)=>{
-      const parts=line.split(';');if(parts.length<2)return;
-      const bc=parts[0].trim().replace(/^["']|["']$/g,'');
-      const name=parts[1].trim().replace(/^["']|["']$/g,'');
-      const unit=(parts[2]||'').trim().replace(/^["']|["']$/g,'');
-      if(!bc||!name)return;
-      if(i===0&&(bc.toLowerCase().includes('barcode')||bc.toLowerCase().includes('code')))return;
-      newProducts[bc]={name,unit};count++;
-    });
-    if(count>0){
-      products=newProducts;
-      save();
-      renderProductTable();
-      setProductCount(count);
-      status.textContent='✓ '+count+' Produkte geladen';
-      status.style.color='var(--odoo-teal)';
-    } else {
-      throw new Error('Keine Produkte in CSV');
-    }
-  }catch(e){
-    // Kein Netz oder Datei nicht gefunden → lokale Daten verwenden
-    const n=Object.keys(products).length;
-    if(n>0){
-      status.textContent='Offline · '+n+' Produkte (lokal)';
-      status.style.color='var(--muted)';
-    } else {
-      status.textContent='⚠ Keine Produkte – CSV in GitHub hochladen';
-      status.style.color='#e07060';
-    }
-    setProductCount(Object.keys(products).length);
+// ═══════════ AUFFÜLLEN / PACKLISTE ═══════════
+function packFind(key){return packItems.find(i=>i.key===key)}
+function packScan(code){
+  const key=findByCode(code);const p=key?products[key]:null;const k=key||('bc:'+code);
+  let it=packFind(k);
+  if(it)it.qty=round(it.qty+1);
+  else{it={key:k,bc:p?p.bc:code,name:p?p.name:'Unbekannt ('+code+')',unit:p?p.unit:'',qty:1,done:false,unk:!p};packItems.push(it)}
+  packCurrent=k;savePack();beep(!!p);
+  if(!p)toast('Unbekannter Barcode '+code,{err:true});
+  if(tab==='list')renderPackList();else renderPack();
+}
+function packPick(key){
+  const p=products[key];const it=packFind(key);
+  showPad({title:p.name,sub:it?`Bereits in Packliste: ${fmt(it.qty)} ${p.unit||''}`:'Menge für die Packliste',unit:p.unit,
+    okLabel:it?'+ Dazu':'✓ Hinzufügen',
+    onOk:n=>{const x=packFind(key);if(x)x.qty=round(x.qty+n);else packItems.push({key,bc:p.bc,name:p.name,unit:p.unit,qty:n,done:false});packCurrent=key;savePack();beep(true);renderPack()},
+    secLabel:it?'= Ersetzen':'',onSec:it?(n=>{const x=packFind(key);x.qty=n;packCurrent=key;savePack();renderPack()}):null});
+}
+function renderPack(){
+  const it=packCurrent?packFind(packCurrent):null;const pv=$('pack-preview');
+  if(!it){pv.className='preview';pv.innerHTML='<span class="hint">Scannen, eintippen (🔢) oder suchen (🔎)</span>'}
+  else{
+    pv.className='preview '+(it.unk?'unknown':'found');
+    pv.innerHTML=`<div class="dot ${it.unk?'err':''}">${it.unk?'?':'✓'}</div><div style="flex:1;min-width:0"><div class="pname">${esc(it.name)}</div><div class="pmeta">${esc(it.bc||'')}</div></div>${it.unit?`<span class="badge">${esc(it.unit)}</span>`:''}`;
   }
+  $('pack-qty').textContent=it?fmt(it.qty):'–';$('pack-qty').classList.toggle('off',!it);
+  $('pack-minus').disabled=$('pack-plus').disabled=!it;
+  const area=$('pack-recent');
+  if(!packItems.length){area.innerHTML='<div class="list-empty">Noch nichts erfasst.</div>'}
+  else{
+    let h=`<div class="sec-label">${packItems.length} Artikel in der Packliste</div>`;
+    packItems.map((x,i)=>[x,i]).reverse().forEach(([x,i])=>{
+      h+=`<div class="card ${x.key===packCurrent?'current':''} ${x.unk?'unknown':''}"><div class="c-info"><div class="c-name">${esc(x.name)}${x.unit?', '+esc(x.unit):''}</div><div class="c-meta">${esc(x.bc||'')}</div></div><button class="qty-chip" data-act="packEdit" data-i="${i}">${fmt(x.qty)}</button><button class="del-btn" data-act="packDel" data-i="${i}">✕</button></div>`;
+    });
+    area.innerHTML=h;
+  }
+  updateBadges();
+}
+function packEdit(i){
+  const x=packItems[i];if(!x)return;
+  showPad({title:x.name,sub:`Aktuell: ${fmt(x.qty)} ${x.unit||''}`,unit:x.unit,placeholder:fmt(x.qty),onOk:n=>{x.qty=n;savePack();tab==='list'?renderPackList():renderPack()}});
+}
+function packDel(i){
+  const x=packItems.splice(i,1)[0];if(!x)return;if(packCurrent===x.key)packCurrent=null;savePack();
+  tab==='list'?renderPackList():renderPack();
+  toast(`„${x.name}" entfernt`,{action:'Rückgängig',fn:()=>{packItems.splice(i,0,x);savePack();tab==='list'?renderPackList():renderPack()}});
+}
+function renderPackList(){
+  const sc=$('pl-scroll');
+  if(!packItems.length){sc.innerHTML='<div class="list-empty">Packliste ist leer.</div>';$('pl-meta').textContent='–';$('pl-prog').hidden=true;updateBars();updateBadges();return}
+  const done=packItems.filter(i=>i.done).length;
+  $('pl-meta').textContent=`${done}/${packItems.length} erledigt`;
+  $('pl-prog').hidden=false;$('pl-fill').style.width=(done/packItems.length*100).toFixed(1)+'%';
+  sc.innerHTML=packItems.map((x,i)=>`<div class="pack-item"><div class="check ${x.done?'done':''}" data-act="packDone" data-i="${i}"></div><div class="c-info"><div class="pack-name ${x.done?'done':''}">${esc(x.name)}</div><div class="c-meta">${esc(x.bc||'')}</div></div><div><div class="pack-qty" data-act="packEdit" data-i="${i}">${fmt(x.qty)}</div><div class="qty-unit">${esc(x.unit||'Stk.')}</div></div><button class="del-btn" data-act="packDel" data-i="${i}">🗑</button></div>`).join('');
+  updateBars();updateBadges();
+}
+function exportPack(){
+  if(!packItems.length)return toast('Packliste ist leer');
+  const rows=['Barcode;Produkt;Einheit;Menge;Erledigt',...packItems.map(i=>[csvTxt(i.bc),csvTxt(i.name),csvTxt(i.unit),csvNum(i.qty),i.done?'ja':'nein'].join(';'))];
+  exportFile(`packliste_${fileStamp()}.csv`,rows.join('\r\n'));
+}
+function printPack(){
+  if(!packItems.length)return toast('Packliste ist leer');
+  printHTML(`<h1>Packliste</h1><div class="meta">${fmtTime(Date.now())} · ${packItems.length} Artikel</div><table><tr><th></th><th>Produkt</th><th>Barcode</th><th class="n">Menge</th><th>Einheit</th></tr>${packItems.map(i=>`<tr><td><span class="box"></span></td><td>${esc(i.name)}</td><td>${esc(i.bc||'')}</td><td class="n">${fmt(i.qty)}</td><td>${esc(i.unit||'')}</td></tr>`).join('')}</table>`);
 }
 
-// ══ INIT ══
-load();showTab('scan');renderScanList();updateBadge();
-setProductCount(Object.keys(products).length);
-loadCSVFromGitHub();
+// ═══════════ SUCHE (Auffüllen) ═══════════
+function openSearch(){$('search-sheet').hidden=false;$('sheet-q').value='';renderSheetResults();setTimeout(()=>$('sheet-q').focus(),50)}
+function closeSearch(){if($('search-sheet').hidden)return;$('search-sheet').hidden=true;$('sheet-q').blur();focusScan()}
+function renderSheetResults(){
+  const q=$('sheet-q').value;const r=$('sheet-results');
+  if(!q.trim()){r.innerHTML='<div class="list-empty">Name, Barcode oder Referenz eingeben.</div>';return}
+  const hits=searchProducts(q);
+  r.innerHTML=hits.length?hits.map(k=>{const p=products[k];const it=packFind(k);return `<div class="card tap" data-act="sheetPick" data-key="${esc(k)}"><div class="c-info"><div class="c-name">${esc(p.name)}</div><div class="c-meta">${esc(prodMeta(p))}</div></div>${it?`<span class="badge">${fmt(it.qty)}</span>`:'<span class="plus">+</span>'}</div>`}).join(''):'<div class="list-empty">Kein Produkt gefunden.</div>';
+}
+
+// ═══════════ INVENTUR ═══════════
+function ensureSetup(){if(!settings.who||!settings.area){openSetup(true);return false}return true}
+function invEntryFor(key){return inv.find(e=>e.key===key&&e.area===settings.area&&e.dev===settings.device)}
+function newEntry(key,p,code,qty){
+  return {id:uid(),key,bc:p?p.bc:code,ref:p?p.ref:'',name:p?p.name:'Unbekannt',unit:p?p.unit:'',qty,area:settings.area,who:settings.who,dev:settings.device,t:Date.now(),note:'',unk:!p};
+}
+function invScan(code){
+  if(!ensureSetup())return;
+  const key=findByCode(code);const p=key?products[key]:null;const k=key||('bc:'+code);
+  beep(!!p);
+  if(!p)toast('Unbekannter Barcode – bitte Notiz ergänzen',{err:true});
+  if(settings.askQty){invCount(k,p,code);return}
+  let e=invEntryFor(k);
+  if(e){e.qty=round(e.qty+1);e.t=Date.now()}else{e=newEntry(k,p,code,1);inv.push(e)}
+  invCurrentId=e.id;saveInv();renderInv();
+  if(!p)setTimeout(()=>invNote(e.id),300);
+}
+function invPick(key){if(!ensureSetup())return;invCount(key,products[key],products[key].bc)}
+function invCount(k,p,code){
+  const e=invEntryFor(k);const name=p?p.name:'Unbekannt ('+code+')';const unit=p?p.unit:'';
+  const add=n=>{let x=invEntryFor(k);if(x){x.qty=round(x.qty+n);x.t=Date.now()}else{x=newEntry(k,p,code,n);inv.push(x)}invCurrentId=x.id;saveInv();renderInv();if(!p&&!x.note)setTimeout(()=>invNote(x.id),300)};
+  const set=n=>{const x=invEntryFor(k);x.qty=n;x.t=Date.now();invCurrentId=x.id;saveInv();renderInv()};
+  showPad({title:name,sub:`📍 ${settings.area}`+(e?` · bisher gezählt: ${fmt(e.qty)} ${unit}`:''),unit,allowZero:true,
+    okLabel:e?'+ Dazuzählen':'✓ Übernehmen',onOk:add,secLabel:e?'= Ersetzen':'',onSec:e?set:null});
+}
+function invEdit(id){
+  const e=inv.find(x=>x.id===id);if(!e)return;
+  showPad({title:e.name,sub:`📍 ${e.area} · ${e.who||''} · aktuell ${fmt(e.qty)} ${e.unit||''}`,unit:e.unit,allowZero:true,placeholder:fmt(e.qty),okLabel:'✓ Korrigieren',
+    onOk:n=>{e.qty=n;e.t=Date.now();saveInv();renderInv()}});
+}
+function invAdj(d){const e=inv.find(x=>x.id===invCurrentId);if(!e)return;e.qty=Math.max(0,round(e.qty+d));e.t=Date.now();saveInv();renderInv()}
+function invDel(id){
+  const i=inv.findIndex(x=>x.id===id);if(i<0)return;const e=inv[i];
+  if(e.dev!==settings.device&&!confirm(`Zählung von ${e.who||'anderem Gerät'} löschen?`))return;
+  inv.splice(i,1);if(invCurrentId===id)invCurrentId=null;saveInv();renderInv();
+  toast(`„${e.name}" gelöscht`,{action:'Rückgängig',fn:()=>{inv.splice(i,0,e);saveInv();renderInv()}});
+}
+function invNote(id){
+  const e=inv.find(x=>x.id===id);if(!e)return;
+  const n=prompt(e.unk?`Unbekannter Barcode ${e.bc}\nWas ist das? (Notiz)`:`Notiz zu „${e.name}"`,e.note||'');
+  if(n===null)return;e.note=n.trim();saveInv();renderInv();
+}
+
+function openSetup(force){
+  $('setup-area').value=settings.area||'';$('setup-who').value=settings.who||'';
+  const areas=[...new Set([...(settings.recentAreas||[]),...inv.map(e=>e.area)])].filter(Boolean).slice(0,12);
+  $('setup-recent').innerHTML=areas.map(a=>`<button class="chip ${a===settings.area?'area':''}" data-act="pickArea" data-a="${esc(a)}"><b>${esc(a)}</b></button>`).join('');
+  $('setup-cancel').hidden=!!force&&(!settings.who||!settings.area);
+  $('setup').hidden=false;
+  setTimeout(()=>{(!settings.area||!force?$('setup-area'):$('setup-who')).focus()},80);
+}
+function closeSetup(){if($('setup').hidden)return;$('setup').hidden=true;document.activeElement?.blur?.();if(tab==='inv'&&(!settings.who||!settings.area))showTab('scan');else focusScan()}
+function saveSetup(){
+  const a=$('setup-area').value.trim().replace(/\s+/g,' '),w=$('setup-who').value.trim();
+  if(!a){$('setup-area').focus();return toast('Bitte einen Bereich eingeben',{err:true})}
+  if(!w){$('setup-who').focus();return toast('Bitte deinen Namen eingeben',{err:true})}
+  const changed=a!==settings.area;
+  settings.area=a;settings.who=w;
+  settings.recentAreas=[a,...(settings.recentAreas||[]).filter(x=>x!==a)].slice(0,12);
+  saveSettings();$('setup').hidden=true;document.activeElement?.blur?.();
+  if(changed){invCurrentId=null;toast('Bereich: '+a)}
+  renderInv();focusScan();
+}
+
+function setSeg(s){
+  seg=s;document.querySelectorAll('#inv-seg button').forEach(b=>b.classList.toggle('on',b.dataset.seg===s));
+  ['count','list','open','done'].forEach(x=>$('seg-'+x).classList.toggle('on',x===s));
+  renderInv();if(s==='count')focusScan();
+}
+function countedKeys(){return new Set(inv.map(e=>e.key))}
+function renderInv(){
+  $('inv-area').textContent=settings.area||'Bereich wählen';$('inv-who').textContent=settings.who||'Name';
+  const ck=countedKeys();const total=idx.sorted.length;const counted=idx.sorted.filter(k=>ck.has(k)).length;
+  $('inv-progress').innerHTML=`<b>${counted}</b> / ${total} gezählt`;
+  $('seg-list-n').textContent=inv.length?`(${inv.length})`:'';
+  $('seg-open-n').textContent=total?`(${total-counted})`:'';
+  $('ask-qty').checked=!!settings.askQty;
+  updateBadges();
+  if(seg==='count')renderCount();
+  if(seg==='list')renderInvList();
+  if(seg==='open')renderOpen();
+  if(seg==='done')renderDone();
+}
+function entryCard(e,opts={}){
+  const meta=[e.bc||(e.ref?'Ref '+e.ref:''),opts.showArea?'📍'+e.area:'',e.who&&e.dev!==settings.device?'👤'+e.who:'',fmtTime(e.t).slice(11)].filter(Boolean).join(' · ');
+  return `<div class="card ${e.unk?'unknown':''} ${e.id===invCurrentId&&opts.cur?'current':''}"><div class="c-info"><div class="c-name">${esc(e.name)}</div><div class="c-meta">${esc(meta)}</div>${e.note?`<div class="c-note">✎ ${esc(e.note)}</div>`:''}</div><div><button class="qty-chip ${e.qty===0?'zero':''}" data-act="invEdit" data-id="${esc(e.id)}">${fmt(e.qty)}</button><div class="qty-unit">${esc(e.unit||'')}</div></div><button class="del-btn" data-act="invNote" data-id="${esc(e.id)}" title="Notiz">✎</button><button class="del-btn" data-act="invDel" data-id="${esc(e.id)}" title="Löschen">✕</button></div>`;
+}
+function renderCount(){
+  const e=inv.find(x=>x.id===invCurrentId);const c=$('inv-cur');
+  if(!e){c.className='cur';c.innerHTML='<span style="color:var(--muted);font-size:13px">Barcode scannen oder nach Namen suchen.</span>'}
+  else{
+    c.className='cur '+(e.unk?'unknown':'found');
+    c.innerHTML=`<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:15px">${esc(e.name)}</div><div class="c-meta">${esc(e.bc||'')}${e.unit?' · '+esc(e.unit):''}</div>${e.note?`<div class="c-note">✎ ${esc(e.note)}</div>`:''}</div><button class="qty-btn" data-act="invAdj" data-d="-1">−</button><div class="big" data-act="invEdit" data-id="${esc(e.id)}">${fmt(e.qty)}</div><button class="qty-btn" data-act="invAdj" data-d="1">+</button>`;
+  }
+  const q=$('inv-q').value;$('inv-q-clear').hidden=!q;const r=$('inv-results');
+  if(q.trim()){
+    const hits=searchProducts(q);const sums={};
+    inv.forEach(x=>{if(x.area===settings.area)sums[x.key]=(sums[x.key]||0)+x.qty});
+    r.innerHTML=hits.length?`<div class="sec-label">${hits.length} Treffer · antippen zum Zählen</div>`+hits.map(k=>{const p=products[k];const s=sums[k];return `<div class="card tap" data-act="invPick" data-key="${esc(k)}"><div class="c-info"><div class="c-name">${esc(p.name)}</div><div class="c-meta">${esc(prodMeta(p))}</div></div>${s!==undefined?`<span class="badge">${fmt(s)}</span>`:'<span class="plus">+</span>'}</div>`}).join(''):'<div class="list-empty">Kein Produkt gefunden.<br>Prüfe die Schreibweise oder lege es unter ⚙ Produkte an.</div>';
+  }else{
+    const mine=inv.filter(x=>x.area===settings.area).sort((a,b)=>b.t-a.t);
+    r.innerHTML=mine.length?`<div class="sec-label">Gezählt in „${esc(settings.area)}" (${mine.length})</div>`+mine.slice(0,40).map(x=>entryCard(x,{cur:true})).join('')+(mine.length>40?`<div class="list-empty">… weitere unter „Liste"</div>`:''):'<div class="list-empty">In diesem Bereich ist noch nichts gezählt.</div>';
+  }
+}
+function renderInvList(){
+  const areas=[...new Set(inv.map(e=>e.area))].sort((a,b)=>a.localeCompare(b,'de'));
+  if(listFilter&&!areas.includes(listFilter))listFilter='';
+  $('list-filter').innerHTML=inv.length?[`<button class="chip ${!listFilter?'on':''}" data-act="listFilter" data-a="">Alle</button>`,...areas.map(a=>`<button class="chip ${listFilter===a?'on':''}" data-act="listFilter" data-a="${esc(a)}"><b>${esc(a)}</b></button>`)].join(''):'';
+  const el=$('inv-list');
+  if(!inv.length){el.innerHTML='<div class="list-empty">Noch keine Zählungen.</div>';return}
+  let h='';
+  for(const a of areas){
+    if(listFilter&&a!==listFilter)continue;
+    const es=inv.filter(e=>e.area===a).sort((x,y)=>x.name.localeCompare(y.name,'de'));
+    h+=`<div class="group-h">📍 ${esc(a)}<span>${es.length} Positionen</span></div>`+es.map(e=>entryCard(e)).join('');
+  }
+  el.innerHTML=h;
+}
+let openLimit=150;
+function renderOpen(){
+  const ck=countedKeys();const q=$('open-q').value;const toks=norm(q).split(/\s+/).filter(Boolean);
+  let keys=idx.sorted.filter(k=>!ck.has(k)&&(!toks.length||toks.every(t=>idx.text[k].includes(t))));
+  const el=$('open-list');
+  if(!idx.sorted.length){el.innerHTML='<div class="list-empty">Keine Produkte geladen.</div>';return}
+  if(!keys.length){el.innerHTML=`<div class="list-empty">${q?'Keine offenen Produkte für diesen Filter.':'🎉 Alle Produkte sind gezählt.'}</div>`;return}
+  const hasCat=keys.some(k=>products[k].cat);
+  if(hasCat)keys.sort((a,b)=>(products[a].cat||'~').localeCompare(products[b].cat||'~','de')||products[a].name.localeCompare(products[b].name,'de'));
+  let h=`<p class="hint-text">${keys.length} Produkte noch nicht gezählt (in keinem Bereich, auf keinem eingelesenen Gerät). <b>0</b> tippen = in „${esc(settings.area||'–')}" nachgesehen, nichts da.</p>`;
+  let lastCat=null;
+  keys.slice(0,openLimit).forEach(k=>{
+    const p=products[k];
+    if(hasCat&&p.cat!==lastCat){lastCat=p.cat;h+=`<div class="group-h">${esc(p.cat||'Ohne Kategorie')}</div>`}
+    h+=`<div class="card tap" data-act="invPick" data-key="${esc(k)}"><div class="c-info"><div class="c-name">${esc(p.name)}</div><div class="c-meta">${esc(prodMeta(p))}</div></div><button class="mini-btn" data-act="invZero" data-key="${esc(k)}">0</button></div>`;
+  });
+  if(keys.length>openLimit)h+=`<button class="btn sec" data-act="openMore">${keys.length-openLimit} weitere anzeigen</button>`;
+  el.innerHTML=h;
+}
+function invZero(key){
+  if(!ensureSetup())return;const p=products[key];
+  if(invEntryFor(key))return;
+  const e=newEntry(key,p,p.bc,0);inv.push(e);saveInv();renderInv();
+  toast(`„${p.name}" = 0`,{action:'Rückgängig',fn:()=>{inv=inv.filter(x=>x.id!==e.id);saveInv();renderInv()}});
+}
+function renderDone(){
+  const ck=countedKeys();const total=idx.sorted.length;const counted=idx.sorted.filter(k=>ck.has(k)).length;
+  const unk=inv.filter(e=>e.unk).length;
+  $('done-stats').innerHTML=`<div class="stat"><b>${inv.length}</b><span>Positionen</span></div><div class="stat"><b>${counted}</b><span>Produkte gezählt</span></div><div class="stat"><b>${total-counted}</b><span>offen</span></div>`;
+  const areas={};
+  inv.forEach(e=>{const a=areas[e.area]||(areas[e.area]={n:0,who:new Set()});a.n++;if(e.who)a.who.add(e.who)});
+  const names=Object.keys(areas).sort((a,b)=>a.localeCompare(b,'de'));
+  $('done-areas').innerHTML=names.length?`<table class="t"><tr><th>Bereich</th><th>Positionen</th><th>Gezählt von</th></tr>${names.map(a=>`<tr><td><b>${esc(a)}</b></td><td>${areas[a].n}</td><td>${esc([...areas[a].who].join(', '))}</td></tr>`).join('')}</table>`+(unk?`<p class="hint-text" style="margin-top:8px;color:var(--danger)">${unk} unbekannte Barcodes – stehen in der Zählliste, aber nicht in der Odoo-Datei.</p>`:''):'<p class="hint-text" style="margin:0">Noch keine Zählungen.</p>';
+}
+
+// Export / Zusammenführen
+const DETAIL_HDR='ID;Barcode;Interne Referenz;Produkt;Einheit;Menge;Bereich;Zähler;Gerät;Zeit;Notiz';
+function exportDetail(){
+  if(!inv.length)return toast('Noch keine Zählungen');
+  const rows=[DETAIL_HDR,...inv.slice().sort((a,b)=>a.area.localeCompare(b.area,'de')||a.name.localeCompare(b.name,'de')).map(e=>[e.id,csvTxt(e.bc),csvTxt(e.ref),csvTxt(e.name),csvTxt(e.unit),csvNum(e.qty),csvTxt(e.area),csvTxt(e.who),e.dev,fmtTime(e.t),csvTxt(e.note)].join(';'))];
+  exportFile(`zaehlliste_${slug(settings.who)}_${fileStamp()}.csv`,rows.join('\r\n'));
+}
+const DET_SPEC=[['id',['id']],['ref',['referenz']],['bc',['barcode']],['name',['produkt']],['unit',['einheit']],['qty',['menge']],['area',['bereich']],['who',['zahler']],['dev',['gerat']],['t',['zeit']],['note',['notiz']]];
+async function mergeFiles(files){
+  const have=new Set(inv.map(e=>e.id));let added=0,skipped=0,bad=0;
+  for(const f of files){
+    const rows=parseCSV(await f.text());if(!rows.length){bad++;continue}
+    const m=mapHeader(rows[0],DET_SPEC);
+    if(m.id===undefined||m.qty===undefined||m.area===undefined){bad++;continue}
+    for(let r=1;r<rows.length;r++){
+      const row=rows[r];const g=k=>m[k]!==undefined?(row[m[k]]||'').trim():'';
+      const id=g('id');if(!id)continue;
+      if(have.has(id)){skipped++;continue}
+      const bc=g('bc'),ref=g('ref'),name=g('name');
+      const key=(bc&&findByCode(bc))||(ref&&idx.ref[norm(ref)])||idx.name[norm(name)]||(bc?'bc:'+bc:'name:'+norm(name));
+      const p=products[key];
+      const qty=parseNum(g('qty'));if(isNaN(qty)){continue}
+      inv.push({id,key,bc:bc||(p?p.bc:''),ref:ref||(p?p.ref:''),name:p?p.name:(name||'Unbekannt'),unit:g('unit')||(p?p.unit:''),qty:round(qty),area:g('area')||'?',who:g('who'),dev:g('dev')||'import',t:Date.parse(g('t').replace(' ','T'))||Date.now(),note:g('note'),unk:!p});
+      have.add(id);added++;
+    }
+  }
+  saveInv();renderInv();
+  const st=$('merge-status');st.className='status-line '+(added?'ok':(bad?'err':''));
+  st.textContent=`${added} Zählungen übernommen`+(skipped?`, ${skipped} waren schon vorhanden`:'')+(bad?`, ${bad} Datei(en) nicht erkannt (keine Zählliste?)`:'')+'.';
+}
+function exportOdoo(){
+  if(!inv.length&&!$('zero-open').checked)return toast('Noch keine Zählungen');
+  const sum={};
+  inv.forEach(e=>{if(e.unk||!products[e.key])return;const s=sum[e.key]||(sum[e.key]={qty:0,areas:new Set()});s.qty=round(s.qty+e.qty);s.areas.add(e.area)});
+  if($('zero-open').checked)idx.sorted.forEach(k=>{if(!sum[k])sum[k]={qty:0,areas:new Set(['nicht gezählt'])}});
+  const keys=Object.keys(sum).sort((a,b)=>products[a].name.localeCompare(products[b].name,'de'));
+  const rows=['Barcode;Interne Referenz;Produkt;Einheit;Gezählte Menge;Bereiche',...keys.map(k=>{const p=products[k],s=sum[k];return [csvTxt(p.bc),csvTxt(p.ref),csvTxt(p.name),csvTxt(p.unit),csvNum(s.qty),csvTxt([...s.areas].join(', '))].join(';')})];
+  exportFile(`inventur_odoo_${fileStamp()}.csv`,rows.join('\r\n'));
+  const unk=inv.filter(e=>e.unk).length;if(unk)setTimeout(()=>toast(`${unk} unbekannte Barcodes nicht enthalten`,{err:true}),2700);
+}
+function exportOpen(){
+  const ck=countedKeys();const keys=idx.sorted.filter(k=>!ck.has(k));
+  if(!keys.length)return toast('Keine offenen Produkte');
+  exportFile(`inventur_offen_${fileStamp()}.csv`,['Barcode;Interne Referenz;Produkt;Einheit;Kategorie',...keys.map(k=>{const p=products[k];return [csvTxt(p.bc),csvTxt(p.ref),csvTxt(p.name),csvTxt(p.unit),csvTxt(p.cat)].join(';')})].join('\r\n'));
+}
+function printInv(){
+  if(!inv.length)return toast('Noch keine Zählungen');
+  const areas=[...new Set(inv.map(e=>e.area))].sort((a,b)=>a.localeCompare(b,'de'));
+  printHTML(`<h1>Inventur – Zählliste</h1><div class="meta">${fmtTime(Date.now())} · ${inv.length} Positionen</div>`+areas.map(a=>`<h2>${esc(a)}</h2><table><tr><th>Produkt</th><th>Barcode</th><th class="n">Menge</th><th>Einheit</th><th>Zähler</th><th>Notiz</th></tr>${inv.filter(e=>e.area===a).sort((x,y)=>x.name.localeCompare(y.name,'de')).map(e=>`<tr><td>${esc(e.name)}</td><td>${esc(e.bc||'')}</td><td class="n">${fmt(e.qty)}</td><td>${esc(e.unit||'')}</td><td>${esc(e.who||'')}</td><td>${esc(e.note||'')}</td></tr>`).join('')}</table>`).join(''));
+}
+function clearInv(){
+  if(!inv.length)return toast('Inventurliste ist schon leer');
+  if(!confirm(`Alle ${inv.length} Zählungen auf diesem Gerät löschen?\n\nHast du die Zählliste vorher exportiert?`))return;
+  inv=[];invCurrentId=null;saveInv();renderInv();toast('Inventur geleert');
+}
+
+// ═══════════ PRODUKTE-TAB ═══════════
+function renderProducts(){
+  $('prod-src').textContent=productSource;
+  const q=$('prod-q').value;const keys=q.trim()?searchProducts(q,100):idx.sorted.slice(0,100);
+  const total=idx.sorted.length;
+  $('prod-table').innerHTML=keys.length?`<table class="t"><tr><th>Produkt</th><th>Barcode / Ref.</th><th>Einheit</th><th></th></tr>${keys.map(k=>{const p=products[k];return `<tr><td>${esc(p.name)}${p.manual?' <span class="badge" style="background:var(--warn)">eigen</span>':''}${p.cat?`<div class="c-meta">${esc(p.cat)}</div>`:''}</td><td class="mono" style="font-size:11px;color:var(--text2)">${esc(p.bc||(p.ref?'Ref '+p.ref:'–'))}</td><td>${esc(p.unit||'–')}</td><td>${p.manual?`<button class="del-btn" data-act="delProduct" data-key="${esc(k)}">✕</button>`:''}</td></tr>`}).join('')}</table>${!q.trim()&&total>100?`<p class="hint-text" style="margin-top:8px">Erste 100 von ${total} – zum Finden die Suche verwenden.</p>`:''}`:'<p class="hint-text">Keine Produkte.</p>';
+  $('set-who').value=settings.who||'';$('set-sound').checked=!!settings.sound;$('set-wake').checked=!!settings.wake;
+  const persisted=window.__persisted;
+  $('device-info').innerHTML=`Gerät <b class="mono">${esc(settings.device)}</b> · ${APP_VERSION} · ${isStandalone()?'als App installiert':'im Browser geöffnet'}${persisted===true?' · Speicher dauerhaft':''}${persisted===false?' · Speicher nicht dauerhaft gesichert':''}`;
+}
+function addManual(){
+  const bc=$('new-bc').value.trim(),name=$('new-name').value.trim(),unit=$('new-unit').value.trim(),ref=$('new-ref').value.trim();
+  if(!name)return toast('Bitte einen Produktnamen eingeben',{err:true});
+  if(bc&&idx.bc[bc])return toast('Barcode existiert schon: '+products[idx.bc[bc]].name,{err:true});
+  const key=productKey(bc,ref,name);products[key]={bc,name,unit,ref,cat:'',manual:true};rebuildIndex();save();
+  ['new-bc','new-name','new-unit','new-ref'].forEach(i=>$(i).value='');toast('Produkt angelegt');renderProducts();
+}
+async function importProductFile(f){
+  const st=$('import-status');
+  const {list,dup}=rowsToProducts(parseCSV(await f.text()));
+  if(!list.length){st.className='status-line err';st.textContent='Keine Produkte erkannt. Kopfzeile mit „Name" nötig, Trennzeichen Semikolon.';return}
+  for(const [k,p] of list)products[k]={...p,manual:true};
+  rebuildIndex();save();renderProducts();
+  st.className='status-line ok';st.textContent=`✓ ${list.length} Produkte übernommen${dup?`, ${dup} doppelte Einträge`:''}.`;
+}
+function exportProducts(){
+  if(!idx.sorted.length)return toast('Keine Produkte');
+  exportFile('produkte.csv',['Barcode;Name;Einheit;Interne Referenz;Produktkategorie',...idx.sorted.map(k=>{const p=products[k];return [csvTxt(p.bc),csvTxt(p.name),csvTxt(p.unit),csvTxt(p.ref),csvTxt(p.cat)].join(';')})].join('\r\n'));
+}
+
+// ═══════════ KAMERA ═══════════
+let camStream=null,camOn=false,detector=null;
+async function getDetector(){
+  if(detector)return detector;
+  const want=['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf','qr_code'];
+  if('BarcodeDetector' in window){
+    try{const sup=await BarcodeDetector.getSupportedFormats();if(sup.includes('ean_13')){detector=new BarcodeDetector({formats:want.filter(f=>sup.includes(f))});return detector}}catch(e){}
+  }
+  if(!window.BarcodeDetectionAPI){
+    $('cam-info').textContent='Barcode-Erkennung wird geladen …';
+    await new Promise((res,rej)=>{const s=document.createElement('script');s.src='barcode-polyfill.js';s.onload=res;s.onerror=rej;document.head.appendChild(s)});
+  }
+  detector=new window.BarcodeDetectionAPI.BarcodeDetector({formats:want});
+  return detector;
+}
+async function openCamera(){
+  if(!navigator.mediaDevices?.getUserMedia)return toast('Keine Kamera verfügbar');
+  $('cam').hidden=false;$('cam-info').textContent='Kamera startet …';camOn=true;
+  try{
+    camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
+    if(!camOn){stopStream();return}
+    const v=$('cam-video');v.srcObject=camStream;await v.play();
+    const det=await getDetector();
+    $('cam-info').textContent='Barcode in den Rahmen halten';
+    let last='',lastN=0;
+    while(camOn){
+      if(v.readyState>=2){
+        try{
+          const r=await det.detect(v);
+          if(r.length){const c=r[0].rawValue;if(c===last)lastN++;else{last=c;lastN=1}
+            if(lastN>=2){closeCamera();handleScan(c);return}}
+        }catch(e){}
+      }
+      await new Promise(r=>setTimeout(r,120));
+    }
+  }catch(err){
+    closeCamera();
+    toast(err&&err.name==='NotAllowedError'?'Kamerazugriff verweigert – in den Einstellungen erlauben':'Kamera-Scan auf diesem Gerät nicht verfügbar',{err:true});
+  }
+}
+function stopStream(){if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}}
+function closeCamera(){if(!camOn&&$('cam').hidden)return;camOn=false;stopStream();$('cam-video').srcObject=null;$('cam').hidden=true;focusScan()}
+
+// ═══════════ KOPF / BADGES ═══════════
+function renderHeader(){$('h-meta').innerHTML=`<div>${idx.sorted.length} Produkte</div><div class="v">${APP_VERSION}</div>`}
+function updateBadges(){
+  $('list-badge').textContent=packItems.length?` (${packItems.length})`:'';
+  $('inv-badge').textContent=inv.length?` (${inv.length})`:'';
+}
+
+// ═══════════ AKTIONEN (Klick-Delegation) ═══════════
+const actions={
+  barcodePad:()=>showPad({mode:'barcode',title:'Barcode eintippen',decimals:false,placeholder:'…',okLabel:'✓ Suchen'}),
+  openSearch, closeSearch,
+  sheetPick:d=>{closeSearch();packPick(d.key)},
+  openCamera, closeCamera,
+  packEditCurrent:()=>{const i=packItems.findIndex(x=>x.key===packCurrent);if(i>=0)packEdit(i)},
+  packAdj:d=>{const it=packFind(packCurrent);if(!it)return;it.qty=Math.max(1,round(it.qty+Number(d.d)));savePack();renderPack()},
+  packEdit:d=>packEdit(+d.i), packDel:d=>packDel(+d.i),
+  packDone:d=>{const x=packItems[+d.i];x.done=!x.done;savePack();renderPackList()},
+  exportPack, printPack,
+  clearPack:()=>{if(packItems.length&&confirm('Packliste wirklich leeren?')){packItems=[];packCurrent=null;savePack();renderPackList()}},
+  setup:()=>openSetup(false), closeSetup, saveSetup,
+  pickArea:d=>{$('setup-area').value=d.a;$('setup-recent').querySelectorAll('.chip').forEach(c=>c.classList.toggle('area',c.dataset.a===d.a));if(!$('setup-who').value)$('setup-who').focus()},
+  invPick:d=>invPick(d.key), invEdit:d=>invEdit(d.id), invDel:d=>invDel(d.id), invNote:d=>invNote(d.id),
+  invAdj:d=>invAdj(Number(d.d)), invZero:d=>invZero(d.key),
+  clearInvQ:()=>{$('inv-q').value='';renderCount();focusScan()},
+  listFilter:d=>{listFilter=d.a;renderInvList()},
+  openMore:()=>{openLimit+=300;renderOpen()},
+  exportDetail, exportOdoo, exportOpen, printInv, clearInv,
+  pickMerge:()=>$('merge-file').click(),
+  addManual, exportProducts, reloadCSV:()=>loadCSV(true),
+  pickProductFile:()=>$('prod-file').click(),
+  delProduct:d=>{if(confirm('Eigenes Produkt löschen?')){delete products[d.key];rebuildIndex();save();renderProducts()}},
+  dismissInstall:()=>{settings.installDismissed=true;saveSettings();$('install-banner').hidden=true},
+};
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-tab]');if(t){showTab(t.dataset.tab);return}
+  const s=e.target.closest('[data-seg]');if(s){setSeg(s.dataset.seg);return}
+  const p=e.target.closest('[data-pad]');
+  if(p){const k=p.dataset.pad;if(k==='ok')padSubmit('ok');else if(k==='sec')padSubmit('sec');else if(k==='cancel')closePad();else padKey(k);return}
+  const a=e.target.closest('[data-act]');
+  if(a&&actions[a.dataset.act]){e.stopPropagation();actions[a.dataset.act](a.dataset)}
+});
+$('pad').addEventListener('click',e=>{if(e.target.id==='pad')closePad()});
+$('search-sheet').addEventListener('click',e=>{if(e.target.id==='search-sheet')closeSearch()});
+$('inv-q').addEventListener('input',()=>renderCount());
+$('sheet-q').addEventListener('input',renderSheetResults);
+$('open-q').addEventListener('input',()=>{openLimit=150;renderOpen()});
+$('prod-q').addEventListener('input',renderProducts);
+$('ask-qty').addEventListener('change',e=>{settings.askQty=e.target.checked;saveSettings();focusScan()});
+$('set-who').addEventListener('change',e=>{settings.who=e.target.value.trim();saveSettings()});
+$('set-sound').addEventListener('change',e=>{settings.sound=e.target.checked;saveSettings();if(settings.sound){unlockAudio();beep(true)}});
+$('set-wake').addEventListener('change',e=>{settings.wake=e.target.checked;saveSettings();if(!settings.wake&&wakeLock){wakeLock.release();wakeLock=null}else keepAwake()});
+$('merge-file').addEventListener('change',e=>{if(e.target.files.length)mergeFiles([...e.target.files]);e.target.value=''});
+$('prod-file').addEventListener('change',e=>{if(e.target.files[0])importProductFile(e.target.files[0]);e.target.value=''});
+
+// ═══════════ INSTALLATION / OFFLINE ═══════════
+let installEvt=null;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();installEvt=e;
+  if(settings.installDismissed)return;
+  $('install-text').textContent='Als App installieren: startet schneller und funktioniert auch ohne Netz.';
+  $('install-btn').hidden=false;$('install-banner').hidden=false;
+});
+$('install-btn').addEventListener('click',async()=>{if(!installEvt)return;installEvt.prompt();await installEvt.userChoice;installEvt=null;$('install-banner').hidden=true});
+function initInstallHint(){
+  if(isIOS&&!isStandalone()&&!settings.installDismissed){
+    $('install-text').innerHTML='<b>Wichtig fürs iPhone:</b> Teilen-Symbol ⬆︎ → „Zum Home-Bildschirm". Nur so bleiben Zählungen sicher gespeichert und die App läuft offline.';
+    $('install-banner').hidden=false;
+  }
+}
+if('serviceWorker' in navigator&&location.protocol==='https:'){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+if(navigator.storage&&navigator.storage.persist){
+  navigator.storage.persisted().then(p=>p?true:navigator.storage.persist()).then(p=>{window.__persisted=!!p}).catch(()=>{});
+}
+
+// ═══════════ START ═══════════
+load();
+if(navigator.mediaDevices?.getUserMedia)document.querySelectorAll('.cam-only').forEach(b=>b.hidden=false);
+initInstallHint();
+showTab('scan');
+loadCSV(false);
 </script>
 </body>
 </html>
