@@ -97,6 +97,20 @@
   .c-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .c-meta{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .c-note{font-size:11px;color:var(--warn);margin-top:2px}
+  .chip-list{display:flex;flex-wrap:wrap;gap:6px}
+  .chip-list .chip{font-size:12px;padding:4px 10px}
+  .chip-list .chip.on{background:var(--purple);color:#fff;border-color:var(--purple)}
+  .chip-list .chip.on b{color:#fff}
+  .btn:disabled{opacity:.4;cursor:default}
+  .c-note.bad{color:var(--danger)}.c-note.info{color:var(--muted)}
+  .filter-chips .chip.warn b{color:var(--danger)}
+  .filter-chips .chip.on.warn b{color:#fff}
+  #list-status{padding-top:8px}
+  .qbox{border:1.5px dashed var(--border2);border-radius:var(--radius);padding:10px 12px;margin:8px 0;font-size:12px;line-height:1.5;color:var(--text2)}
+  .qbox.ok{border-style:solid;border-color:var(--teal);background:#f1f8f7}
+  .qbox ul{margin:4px 0 0 18px}.qbox li{margin:1px 0}
+  .linkish{background:none;border:none;color:var(--purple);text-decoration:underline;font:inherit;cursor:pointer;padding:0}
+  .step-n{display:inline-block;background:var(--purple);color:#fff;border-radius:99px;font-size:11px;font-weight:700;padding:1px 7px;margin-right:4px}
   .qty-chip{background:var(--purple);color:#fff;font-size:14px;font-weight:600;min-width:42px;height:36px;padding:0 8px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;font-family:'IBM Plex Mono',monospace;border:0}
   .qty-chip.zero{background:var(--muted)}
   .qty-unit{font-size:10px;color:var(--muted);text-align:center;margin-top:2px;max-width:70px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -371,6 +385,13 @@
 
   <!-- Liste -->
   <div class="segview" id="seg-list">
+    <div id="list-tools" hidden>
+      <div class="search-wrap" style="margin-bottom:0">
+        <input id="list-q" class="search" type="search" placeholder="Gezählte Artikel durchsuchen …" autocomplete="off" spellcheck="false">
+        <button class="search-clear" data-act="clearListQ" id="list-q-clear" hidden>✕</button>
+      </div>
+      <div class="filter-chips" id="list-status"></div>
+    </div>
     <div class="filter-chips" id="list-filter"></div>
     <div class="scroll" id="inv-list"></div>
   </div>
@@ -403,21 +424,34 @@
         <div class="status-line" id="merge-status"></div>
       </div>
       <div class="box">
-        <div class="box-title">2 · Ergebnis für Odoo exportieren</div>
-        <p>Eine Zeile je Produkt, Mengen aus allen Bereichen und Geräten addiert, alles auf den Lagerort <b id="odoo-loc-label">WH/Bestand</b>. Nur bestandsgeführte Produkte. In Odoo: <i>Lager → Vorgänge → Bestandsaufnahme → ⚙ → Datensätze importieren</i>.</p>
-        <label class="check-line"><input type="checkbox" id="zero-open" checked> Nicht gezählte bestandsgeführte Produkte mit Menge 0 aufnehmen (Vollaufnahme – setzt z. B. negative Bestände auf 0)</label>
+        <div class="box-title">2 · Kategorien ausnehmen</div>
+        <p>Angetippte Kategorien gehören <b>nicht</b> zu dieser Inventur (z. B. Eigenanbau – zählt die Landwirtschaft separat): nicht unter „Offen“ und werden <b>nicht auf 0 gesetzt</b>. Ihr Bestand in Odoo bleibt unverändert.</p>
+        <div class="chip-list" id="excl-cats"></div>
+        <label class="check-line"><input type="checkbox" id="excl-take" checked><span>Was aus diesen Kategorien trotzdem gezählt wurde (z. B. Honig, Apfelsaft im Laden), wird übernommen. Nur <b>nicht gezählte</b> Produkte bleiben unverändert.</span></label>
+      </div>
+      <div class="box">
+        <div class="box-title">3 · In Odoo buchen</div>
+        <p><span class="step-n">A</span><b>Bestandsaufnahme aus Odoo einlesen.</b> In Odoo: <i>Lager → Vorgänge → Bestandsaufnahme</i> → Filter entfernen → alle Zeilen auswählen → <i>Aktionen → Exportieren</i> → „Ich will Daten importieren“ anhaken → Felder <b>Produkt</b> und <b>Lagerort</b> (Vorlage „Hofladen-Inventur“) → Exportieren. Die Datei (.xlsx oder .csv) hier einlesen – erst <b>nach</b> dem Zählen, kurz vor dem Buchen.</p>
+        <button class="btn sec" data-act="pickQuants">⬇ Odoo-Bestandsaufnahme einlesen</button>
+        <input type="file" id="quant-file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+        <div id="quant-info"></div>
+        <p style="margin-top:12px"><span class="step-n">B</span><b>Optionen.</b> Lagerort <b id="odoo-loc-label">WH/Bestand</b>, Mengen aus allen Bereichen und Geräten addiert.</p>
+        <label class="check-line"><input type="checkbox" id="zero-open" checked> Nicht gezählte Produkte auf 0 setzen (Vollinventur – gilt nicht für ausgenommene Kategorien)</label>
         <div class="label" style="margin-top:10px">Buchungsdatum / Stichtag (optional)</div>
         <input type="date" class="field" id="acc-date">
-        <button class="btn" data-act="exportOdoo">⬇ Odoo-Importdatei</button>
-        <div class="btn-row">
+        <p style="margin-top:12px"><span class="step-n">C</span><b>Dateien erzeugen und in Odoo importieren</b> – beide in der Bestandsaufnahme über <i>⚙ → Datensätze importieren</i>, erst Datei 1, dann Datei 2. Danach Spalte „Differenz“ prüfen und <i>Alle anwenden</i>.</p>
+        <div id="odoo-plan"></div>
+        <button class="btn" data-act="exportQuantUpdate" id="btn-q1" disabled>⬇ Datei 1 · Bestandszeilen setzen</button>
+        <button class="btn" data-act="exportQuantNew" id="btn-q2" disabled>⬇ Datei 2 · Neue Bestandszeilen</button>
+        <div class="btn-row" style="margin-top:6px">
           <button class="btn sec" data-act="exportSummary">Summenliste (Excel)</button>
           <button class="btn sec" data-act="exportOpen">Offene Produkte</button>
         </div>
         <button class="btn sec" data-act="printInv">🖨 Zählliste drucken</button>
       </div>
       <div class="box">
-        <div class="box-title">3 · Inventur beenden</div>
-        <p>Löscht alle Zählungen auf diesem Gerät. Vorher die Zählliste exportieren.</p>
+        <div class="box-title">4 · Inventur beenden</div>
+        <p>Löscht alle Zählungen und die eingelesene Bestandsaufnahme auf diesem Gerät. Vorher die Zählliste exportieren.</p>
         <button class="btn danger" data-act="clearInv">Inventur auf diesem Gerät leeren</button>
       </div>
     </div>
@@ -551,7 +585,7 @@
 
 <script>
 'use strict';
-const APP_VERSION='v3.6';
+const APP_VERSION='v3.8';
 const CSV_URL='produkte.csv';
 const $=id=>document.getElementById(id);
 
@@ -627,17 +661,25 @@ function load(){
 
 // ═══════════ PRODUKTE ═══════════
 function rebuildIndex(){
-  idx={bc:{},ref:{},name:{},sorted:[],inv:[],text:{}};
+  idx={bc:{},ref:{},name:{},nameN:{},sorted:[],inv:[],excl:[],text:{}};
   for(const [k,p] of Object.entries(products)){
     if(p.bc)idx.bc[p.bc]=k;
     if(p.ref)idx.ref[norm(p.ref)]=k;
-    idx.name[norm(p.name)]=k;
+    const nn=norm(p.name);idx.name[nn]=k;idx.nameN[nn]=(idx.nameN[nn]||0)+1;
     idx.text[k]=norm([p.name,p.bc,p.ref,p.cat].join(' '));
   }
   idx.sorted=Object.keys(products).sort((a,b)=>products[a].name.localeCompare(products[b].name,'de'));
-  idx.inv=idx.sorted.filter(k=>products[k].track!==false);   // Inventur: nur bestandsgeführte Produkte
+  // Inventur: nur bestandsgeführte Produkte, ohne ausgenommene Kategorien (z. B. Eigenanbau – zählt die Landwirtschaft separat)
+  const tracked=idx.sorted.filter(k=>products[k].track!==false);
+  idx.inv=tracked.filter(k=>!isExcl(products[k]));
+  idx.excl=tracked.filter(k=>isExcl(products[k]));
   renderHeader();
 }
+// Ausgenommene Kategorien: Standard = alle Kategorien mit „Eigenanbau“ im Namen
+function allCats(trackedOnly){return [...new Set(Object.values(products).filter(p=>p.cat&&(!trackedOnly||p.track!==false)).map(p=>p.cat))].sort((a,b)=>a.localeCompare(b,'de'))}
+function exclCats(){return Array.isArray(settings.exclCats)?settings.exclCats:allCats(false).filter(c=>/eigenanbau/i.test(c))}
+const exclTake=()=>settings.exclTakeCounted!==false;
+function isExcl(p){if(!p||!p.cat)return false;return exclCats().some(c=>p.cat===c||p.cat.startsWith(c+' / '))}
 function findByCode(code){
   code=String(code).trim();
   if(idx.bc[code])return idx.bc[code];
@@ -665,7 +707,7 @@ function parseCSV(text){
   if(f!==''||row.length){row.push(f.trim());rows.push(row)}
   return rows.filter(r=>r.some(x=>x!==''));
 }
-const PROD_HDR=[['track',['verfolg','storable','track','bestandsgefuhrt','lagerfuhrung']],['stock',['vorratig','qty_available','on hand','onhand','lagerbestand','buchbestand']],['cat',['kategorie','category','categ']],['ref',['referenz','default_code','artikelnummer','artikel-nr']],['unit',['einheit','uom']],['bc',['barcode','ean','gtin']],['name',['name','produkt','bezeichnung','artikel']]];
+const PROD_HDR=[['vid',['/id','product_variant','variante id']],['track',['verfolg','storable','track','bestandsgefuhrt','lagerfuhrung']],['stock',['vorratig','qty_available','on hand','onhand','lagerbestand','buchbestand']],['cat',['kategorie','category','categ']],['ref',['referenz','default_code','artikelnummer','artikel-nr']],['unit',['einheit','uom']],['bc',['barcode','ean','gtin']],['name',['name','produkt','bezeichnung','artikel']]];
 function mapHeader(row,spec){
   const m={};
   row.forEach((c,i)=>{const n=norm(c);for(const [k,keys] of spec){if(m[k]===undefined&&keys.some(x=>n.includes(x))){m[k]=i;return}}});
@@ -685,6 +727,7 @@ function rowsToProducts(rows){
     const key=productKey(bc,ref,name);
     if(seen.has(key))dup++;seen.add(key);
     const obj={bc,name,unit,ref,cat};if(track!==undefined)obj.track=track;
+    if(m.vid!==undefined){const v=g('vid');if(v&&v!=='False')obj.vid=v}   // Odoo-ID der Produktvariante
     if(m.stock!==undefined){const st=parseNum(g('stock'));if(!isNaN(st))obj.stock=round(st)}
     list.push([key,obj]);
   }
@@ -707,7 +750,8 @@ async function loadCSV(manual){
     const hasStock=list.some(([,p])=>p.stock!==undefined);
     settings.csvAt=Date.parse(res.headers.get('last-modified')||'')||0;settings.csvLoaded=Date.now();
     settings.stockAt=hasStock?(settings.csvAt||Date.now()):0;saveSettings();
-    productSource=`${list.length} Produkte aus produkte.csv${noBc?`, davon ${noBc} ohne Barcode`:''}${hasTrack?` · ${idx.inv.length} bestandsgeführt (nur diese zählen für die Inventur)`:' · Spalte „Bestand verfolgen“ fehlt – alle Produkte zählen für die Inventur'}${hasStock?` · Buchbestand Stand ${fmtTime(settings.stockAt)}`:''} · geladen ${fmtTime(Date.now())}`;
+    const nVid=list.filter(([,p])=>p.vid).length;
+    productSource=`${list.length} Produkte aus produkte.csv${noBc?`, davon ${noBc} ohne Barcode`:''}${nVid?` · ${nVid} mit Odoo-ID`:' · ohne Odoo-ID (Spalte „Produkt/ID“ fehlt)'}${hasTrack?` · ${idx.inv.length} bestandsgeführt (nur diese zählen für die Inventur)`:' · Spalte „Bestand verfolgen“ fehlt – alle Produkte zählen für die Inventur'}${hasStock?` · Buchbestand Stand ${fmtTime(settings.stockAt)}`:''} · geladen ${fmtTime(Date.now())}`;
     const dupN=list.length-Object.keys(next).length+Object.values(next).filter(p=>p.manual).length;
     st.textContent=(navigator.onLine?'✓ ':'Offline · ')+idx.sorted.length+' Produkte geladen'+(dupN>0?` (${dupN} doppelte Barcodes!)`:'')+(settings.csvAt?' · produkte.csv vom '+fmtShort(settings.csvAt):'');st.style.color='var(--teal)';
     if(manual)toast('Produkte neu geladen');
@@ -1001,6 +1045,7 @@ function invScan(code){
   beep(!!p);
   if(!p)toast('Unbekannter Barcode – bitte Notiz ergänzen',{err:true});
   else if(p.track===false)toast(`„${p.name}“ ist in Odoo nicht bestandsgeführt`,{err:true});
+  else if(isExcl(p))toast(exclTake()?`„${p.name}“ (${p.cat}): ausgenommene Kategorie – die gezählte Menge wird trotzdem übernommen`:`„${p.name}“: Kategorie ${p.cat} ist ausgenommen – kommt nicht in die Odoo-Dateien`,{err:!exclTake()});
   if(settings.askQty){invCount(k,p,code);return}
   let e=invEntryFor(k);
   if(e){e.qty=round(e.qty+1);e.t=Date.now()}else{e=newEntry(k,p,code,1);inv.push(e)}
@@ -1100,8 +1145,9 @@ function renderInv(){
   if(seg==='done')renderDone();
 }
 function entryCard(e,opts={}){
+  const dp=products[e.key];const dl=opts.diff&&dp?`<div class="c-note info">Σ gezählt ${fmt(countedAll(e.key))} · Buchbestand ${fmt(dp.stock)} · Differenz ${fmt(round(countedAll(e.key)-dp.stock))}</div>`:'';
   const meta=[e.bc||(e.ref?'Ref '+e.ref:''),opts.showArea?'📍'+e.area:'',e.who&&e.dev!==settings.device?'👤'+e.who:'',fmtTime(e.t).slice(11)].filter(Boolean).join(' · ');
-  return `<div class="card ${e.unk?'unknown':''} ${e.id===invCurrentId&&opts.cur?'current':''}"><div class="c-info"><div class="c-name">${esc(e.name)}</div><div class="c-meta">${esc(meta)}</div>${e.note?`<div class="c-note">✎ ${esc(e.note)}</div>`:''}${products[e.key]&&products[e.key].track===false?'<div class="c-note">⚠ nicht bestandsgeführt – nicht in Odoo-Datei</div>':''}</div><div><button class="qty-chip ${e.qty===0?'zero':''}" data-act="invEdit" data-id="${esc(e.id)}">${fmt(e.qty)}</button><div class="qty-unit">${esc(e.unit||'')}</div></div><button class="del-btn" data-act="invNote" data-id="${esc(e.id)}" title="Notiz">✎</button><button class="del-btn" data-act="invDel" data-id="${esc(e.id)}" title="Löschen">✕</button></div>`;
+  return `<div class="card ${e.unk?'unknown':''} ${e.id===invCurrentId&&opts.cur?'current':''}"><div class="c-info"><div class="c-name">${esc(e.name)}</div><div class="c-meta">${esc(meta)}</div>${e.note?`<div class="c-note">✎ ${esc(e.note)}</div>`:''}${entryFlags(e).map(f=>`<div class="c-note ${f.cls}">${f.txt}</div>`).join('')}${dl}</div><div><button class="qty-chip ${e.qty===0?'zero':''}" data-act="invEdit" data-id="${esc(e.id)}">${fmt(e.qty)}</button><div class="qty-unit">${esc(e.unit||'')}</div></div><button class="del-btn" data-act="invNote" data-id="${esc(e.id)}" title="Notiz">✎</button><button class="del-btn" data-act="invDel" data-id="${esc(e.id)}" title="Löschen">✕</button></div>`;
 }
 function stockLine(k){
   const book=bookOf(products[k]);if(book===null)return '';
@@ -1126,20 +1172,48 @@ function renderCount(){
     r.innerHTML=mine.length?`<div class="sec-label">Gezählt in „${esc(settings.area)}" (${mine.length})</div>`+mine.slice(0,40).map(x=>entryCard(x,{cur:true})).join('')+(mine.length>40?`<div class="list-empty">… weitere unter „Liste"</div>`:''):'<div class="list-empty">In diesem Bereich ist noch nichts gezählt.</div>';
   }
 }
+// Status einer Zählung (für Hinweise an der Karte und die Filter in „Liste“)
+function entryStatus(e){
+  const p=products[e.key];
+  const s={unk:!!e.unk||!p,untr:!!(p&&p.track===false),excl:!!(p&&p.track!==false&&isExcl(p)),note:!!e.note,zero:e.qty===0,diff:false};
+  if(p&&!s.untr&&hasStockData()&&p.stock!==undefined)s.diff=countedAll(e.key)!==round(p.stock);
+  s.msg=s.unk||s.untr||(s.excl&&!exclTake());
+  return s;
+}
+function entryFlags(e){
+  const s=entryStatus(e),p=products[e.key],f=[];
+  if(s.unk)f.push({cls:'bad',txt:'⚠ Unbekannter Artikel – nicht in den Odoo-Dateien'});
+  if(s.untr)f.push({cls:'',txt:'⚠ nicht bestandsgeführt – nicht in den Odoo-Dateien'});
+  if(s.excl)f.push({cls:'info',txt:exclTake()?`⏸ Kategorie ${esc(p.cat)} ausgenommen – gezählte Menge wird trotzdem übernommen`:`⏸ Kategorie ${esc(p.cat)} ausgenommen – nicht in den Odoo-Dateien`});
+  return f;
+}
+const LIST_STATUS=[['','Alle'],['msg','⚠ Alle Meldungen'],['unk','Unbekannt'],['untr','Nicht bestandsgeführt'],['excl','Kategorie ausgenommen'],['diff','≠ Buchbestand'],['zero','Menge 0'],['note','Mit Notiz']];
+let listStatus='';
 function renderInvList(){
   const areas=[...new Set(inv.map(e=>e.area))].sort((a,b)=>a.localeCompare(b,'de'));
   if(listFilter&&!areas.includes(listFilter))listFilter='';
-  $('list-filter').innerHTML=inv.length?[`<button class="chip ${!listFilter?'on':''}" data-act="listFilter" data-a="">Alle</button>`,...areas.map(a=>`<button class="chip ${listFilter===a?'on':''}" data-act="listFilter" data-a="${esc(a)}"><b>${esc(a)}</b></button>`)].join(''):'';
+  const st=new Map(inv.map(e=>[e.id,entryStatus(e)]));
+  const cnt={};LIST_STATUS.forEach(([k])=>cnt[k]=k?inv.filter(e=>st.get(e.id)[k]).length:inv.length);
+  $('list-tools').hidden=!inv.length;
+  $('list-status').innerHTML=inv.length?LIST_STATUS.filter(([k])=>!k||cnt[k]||listStatus===k).map(([k,l])=>`<button class="chip ${listStatus===k?'on':''} ${k&&k!=='note'&&k!=='zero'?'warn':''}" data-act="listStatus" data-s="${k}">${l} <b>${cnt[k]}</b></button>`).join(''):'';
+  $('list-filter').innerHTML=inv.length&&areas.length>1?[`<button class="chip ${!listFilter?'on':''}" data-act="listFilter" data-a="">Alle Bereiche</button>`,...areas.map(a=>`<button class="chip ${listFilter===a?'on':''}" data-act="listFilter" data-a="${esc(a)}">📍<b>${esc(a)}</b></button>`)].join(''):'';
+  $('list-filter').hidden=!(inv.length&&areas.length>1);
   const el=$('inv-list');
   if(!inv.length){el.innerHTML='<div class="list-empty">Noch keine Zählungen.</div>';return}
-  let h='';
+  const toks=norm($('list-q').value).split(/\s+/).filter(Boolean);
+  $('list-q-clear').hidden=!toks.length;
+  const ok=e=>(!listStatus||st.get(e.id)[listStatus])&&(!listFilter||e.area===listFilter)&&(!toks.length||toks.every(t=>(idx.text[e.key]||norm([e.name,e.bc,e.ref].join(' '))).concat(' ',norm(e.note||''),' ',norm(e.who||'')).includes(t)));
+  const shown=inv.filter(ok);
+  let h=(listStatus||toks.length||listFilter)?`<p class="hint-text" style="margin:2px 0 6px">${shown.length} von ${inv.length} Positionen${listStatus==='diff'?' · Summe aller Bereiche und Geräte weicht vom Buchbestand ab':''}</p>`:'';
+  if(!shown.length)h+='<div class="list-empty">Keine Positionen für diesen Filter.</div>';
   for(const a of areas){
-    if(listFilter&&a!==listFilter)continue;
-    const es=inv.filter(e=>e.area===a).sort((x,y)=>x.name.localeCompare(y.name,'de'));
-    h+=`<div class="group-h">📍 ${esc(a)}<span>${es.length} Positionen</span></div>`+es.map(e=>entryCard(e)).join('');
+    const es=shown.filter(e=>e.area===a).sort((x,y)=>x.name.localeCompare(y.name,'de'));
+    if(!es.length)continue;
+    h+=`<div class="group-h">📍 ${esc(a)}<span>${es.length} Positionen</span></div>`+es.map(e=>entryCard(e,{diff:listStatus==='diff'})).join('');
   }
   el.innerHTML=h;
 }
+function showList(status){listStatus=status||'';listFilter='';$('list-q').value='';setSeg('list')}
 let openLimit=150;
 function renderOpen(){
   const ck=countedKeys();const q=$('open-q').value;const toks=norm(q).split(/\s+/).filter(Boolean);
@@ -1150,7 +1224,7 @@ function renderOpen(){
   if(!keys.length){el.innerHTML=`<div class="list-empty">${q?'Keine offenen Produkte für diesen Filter.':'🎉 Alle Produkte sind gezählt.'}</div>`;return}
   const hasCat=keys.some(k=>products[k].cat);
   if(hasCat)keys.sort((a,b)=>(products[a].cat||'~').localeCompare(products[b].cat||'~','de')||products[a].name.localeCompare(products[b].name,'de'));
-  let h=`<p class="hint-text">${keys.length} bestandsgeführte Produkte noch nicht gezählt (in keinem Bereich, auf keinem eingelesenen Gerät). <b>0</b> tippen = in „${esc(settings.area||'–')}" nachgesehen, nichts da.</p>`;
+  let h=`<p class="hint-text">${keys.length} bestandsgeführte Produkte noch nicht gezählt (in keinem Bereich, auf keinem eingelesenen Gerät).${idx.excl.length?` ${idx.excl.length} Produkte aus ausgenommenen Kategorien (${esc(exclCats().join(', '))}) sind nicht aufgeführt.`:''} <b>0</b> tippen = in „${esc(settings.area||'–')}" nachgesehen, nichts da.</p>`;
   let lastCat=null;
   keys.slice(0,openLimit).forEach(k=>{
     const p=products[k];
@@ -1168,14 +1242,19 @@ function invZero(key){
 }
 function renderDone(){
   const ck=countedKeys();const total=idx.inv.length;const counted=idx.inv.filter(k=>ck.has(k)).length;
-  const unk=inv.filter(e=>e.unk).length;
-  const untr=[...new Set(inv.filter(e=>!e.unk&&products[e.key]&&products[e.key].track===false).map(e=>products[e.key].name))];
+  const st=inv.map(entryStatus);const c=k=>st.filter(x=>x[k]).length;
   $('odoo-loc-label').textContent=settings.odooLoc||'WH/Bestand';$('acc-date').value=settings.accDate||'';
   $('done-stats').innerHTML=`<div class="stat"><b>${inv.length}</b><span>Positionen</span></div><div class="stat"><b>${counted}</b><span>Produkte gezählt</span></div><div class="stat"><b>${total-counted}</b><span>offen</span></div>`;
   const areas={};
   inv.forEach(e=>{const a=areas[e.area]||(areas[e.area]={n:0,who:new Set()});a.n++;if(e.who)a.who.add(e.who)});
   const names=Object.keys(areas).sort((a,b)=>a.localeCompare(b,'de'));
-  $('done-areas').innerHTML=names.length?`<table class="t"><tr><th>Bereich</th><th>Positionen</th><th>Gezählt von</th></tr>${names.map(a=>`<tr><td><b>${esc(a)}</b></td><td>${areas[a].n}</td><td>${esc([...areas[a].who].join(', '))}</td></tr>`).join('')}</table>`+(unk?`<p class="hint-text" style="margin-top:8px;color:var(--danger)">${unk} unbekannte Barcodes – stehen in der Zählliste, aber nicht in der Odoo-Datei.</p>`:'')+(untr.length?`<p class="hint-text" style="margin-top:8px;color:var(--warn)">${untr.length} gezählte Produkte sind in Odoo nicht bestandsgeführt und kommen nicht in die Odoo-Datei: ${esc(untr.slice(0,8).join(', '))}${untr.length>8?' …':''}. Falls sie doch Bestand haben: in Odoo „Bestand verfolgen“ anhaken und produkte.csv neu exportieren.</p>`:''):'<p class="hint-text" style="margin:0">Noch keine Zählungen.</p>';
+  const lk=(k,txt,col)=>c(k)?`<p class="hint-text" style="margin:8px 0 0;color:${col}">${txt.replace('#',c(k))} <button class="linkish" data-act="showList" data-s="${k}">anzeigen</button></p>`:'';
+  $('done-areas').innerHTML=names.length?`<table class="t"><tr><th>Bereich</th><th>Positionen</th><th>Gezählt von</th></tr>${names.map(a=>`<tr><td><b>${esc(a)}</b></td><td>${areas[a].n}</td><td>${esc([...areas[a].who].join(', '))}</td></tr>`).join('')}</table>`
+    +lk('unk','⚠ # Positionen mit unbekanntem Artikel – nicht in den Odoo-Dateien.','var(--danger)')
+    +lk('untr','⚠ # Positionen nicht bestandsgeführt – nicht in den Odoo-Dateien. Falls sie doch Bestand haben: in Odoo „Bestand verfolgen“ anhaken und produkte.csv neu exportieren.','var(--warn)')
+    +lk('excl',exclTake()?'⏸ # Positionen aus ausgenommenen Kategorien – werden übernommen (Option unter 2).':'⏸ # Positionen aus ausgenommenen Kategorien – nicht in den Odoo-Dateien.','var(--muted)')
+    :'<p class="hint-text" style="margin:0">Noch keine Zählungen.</p>';
+  $('excl-take').checked=exclTake();renderExclCats();renderOdooPlan();
 }
 
 // Export / Zusammenführen
@@ -1210,7 +1289,7 @@ async function mergeFiles(files){
 }
 function invSums(withZero){
   const sum={};
-  inv.forEach(e=>{const p=products[e.key];if(e.unk||!p||p.track===false)return;const x=sum[e.key]||(sum[e.key]={qty:0,areas:new Set(),who:new Set()});x.qty=round(x.qty+e.qty);x.areas.add(e.area);if(e.who)x.who.add(e.who)});
+  inv.forEach(e=>{const p=products[e.key];if(e.unk||!p||p.track===false||(isExcl(p)&&!exclTake()))return;const x=sum[e.key]||(sum[e.key]={qty:0,areas:new Set(),who:new Set()});x.qty=round(x.qty+e.qty);x.areas.add(e.area);if(e.who)x.who.add(e.who)});
   if(withZero)idx.inv.forEach(k=>{if(!sum[k])sum[k]={qty:0,areas:new Set(['nicht gezählt → 0']),who:new Set()}});
   const keys=Object.keys(sum).sort((a,b)=>products[a].name.localeCompare(products[b].name,'de'));
   return {sum,keys};
@@ -1228,21 +1307,138 @@ function odooProductValue(){
     return p.name};
   return {val,amb};
 }
-function exportOdoo(){
-  const zero=$('zero-open').checked;
-  const {sum,keys}=invSums(zero);
-  if(!keys.length)return toast('Keine bestandsgeführten Produkte gezählt');
-  const {val,amb}=odooProductValue();
-  const f=s=>{s=String(s??'');return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
-  const loc=(settings.odooLoc||'WH/Bestand').trim();
+// ── Odoo-Bestandsaufnahme (stock.quant) einlesen ──
+// Warum: Importzeilen OHNE Quant-ID legen in Odoo eine zusätzliche Bestandszeile an – der Zählbestand kommt dann
+// zum alten Bestand dazu. Mit der ID der vorhandenen Zeile wird deren „Gezählte Menge“ gesetzt und ersetzt den Bestand.
+var quants=readJSON('hfl3_quants',null);
+function saveQuants(){try{quants?localStorage.setItem('hfl3_quants',JSON.stringify(quants)):localStorage.removeItem('hfl3_quants')}catch(e){toast('⚠ Speichern fehlgeschlagen',{err:true})}}
+// Minimaler XLSX-Leser (ZIP + deflate über DecompressionStream, erstes Tabellenblatt)
+async function readXlsx(buf){
+  const dv=new DataView(buf),u8=new Uint8Array(buf);
+  let eocd=-1;for(let i=u8.length-22;i>=Math.max(0,u8.length-66000);i--){if(dv.getUint32(i,true)===0x06054b50){eocd=i;break}}
+  if(eocd<0)throw new Error('Keine gültige Excel-Datei');
+  const n=dv.getUint16(eocd+10,true);let off=dv.getUint32(eocd+16,true);const files={};const td=new TextDecoder();
+  for(let i=0;i<n;i++){
+    const method=dv.getUint16(off+10,true),csize=dv.getUint32(off+20,true),nl=dv.getUint16(off+28,true),el=dv.getUint16(off+30,true),cl=dv.getUint16(off+32,true),lo=dv.getUint32(off+42,true);
+    files[td.decode(u8.subarray(off+46,off+46+nl))]={method,csize,lo};off+=46+nl+el+cl;
+  }
+  const get=async name=>{const f=files[name];if(!f)return null;
+    const start=f.lo+30+dv.getUint16(f.lo+26,true)+dv.getUint16(f.lo+28,true);const data=u8.subarray(start,start+f.csize);
+    if(f.method===0)return td.decode(data);
+    if(typeof DecompressionStream==='undefined')throw new Error('Browser kann .xlsx nicht entpacken – bitte als CSV exportieren');
+    return await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text()};
+  const xml=t=>new DOMParser().parseFromString(t,'application/xml');
+  const ssT=await get('xl/sharedStrings.xml');const ss=ssT?[...xml(ssT).getElementsByTagName('si')].map(x=>[...x.getElementsByTagName('t')].map(t=>t.textContent).join('')):[];
+  const sheet=files['xl/worksheets/sheet1.xml']?'xl/worksheets/sheet1.xml':Object.keys(files).filter(k=>/^xl\/worksheets\/[^/]+\.xml$/.test(k)).sort()[0];
+  if(!sheet)throw new Error('Kein Tabellenblatt gefunden');
+  const doc=xml(await get(sheet));const rows=[];
+  const col=r=>{let c=0;for(const ch of r.replace(/\d+/g,''))c=c*26+ch.charCodeAt(0)-64;return c-1};
+  for(const r of doc.getElementsByTagName('row')){
+    const row=[];
+    for(const c of r.getElementsByTagName('c')){
+      const t=c.getAttribute('t'),v=c.getElementsByTagName('v')[0];let val='';
+      if(t==='s')val=v?ss[+v.textContent]||'':'';
+      else if(t==='inlineStr')val=[...c.getElementsByTagName('t')].map(x=>x.textContent).join('');
+      else val=v?v.textContent:'';
+      row[c.getAttribute('r')?col(c.getAttribute('r')):row.length]=val;
+    }
+    rows.push([...row].map(x=>x==null?'':String(x).trim()));
+  }
+  return rows.filter(r=>r.some(x=>x!==''));
+}
+function quantProductKey(label){
+  label=String(label||'').trim();if(!label)return null;
+  const m=label.match(/^\[([^\]]+)\]\s*(.*)$/);const ref=m?m[1].trim():'',name=(m?m[2]:label).trim();
+  if(ref){const k=idx.ref[norm(ref)]||findByCode(ref);if(k)return k}
+  const nn=norm(name);if(idx.name[nn]&&idx.nameN[nn]===1)return idx.name[nn];
+  return null;
+}
+async function loadQuantFile(f){
+  const st=$('quant-info');
+  try{
+    const rows=/\.xlsx$/i.test(f.name)||f.type.includes('spreadsheetml')?await readXlsx(await f.arrayBuffer()):parseCSV(await f.text());
+    if(rows.length<2)throw new Error('Datei ist leer');
+    const H=rows[0].map(norm);
+    const fi=fn=>H.findIndex(fn);
+    const iId=fi(h=>h==='id'||h==='externe id'||h==='external id'||h==='.id');
+    const iProd=fi(h=>h==='product_id'||h==='produkt'||h==='product');
+    const iLoc=fi(h=>h==='location_id'||h==='lagerort'||h==='ort'||h==='location');
+    const iQty=fi(h=>h==='quantity'||h.startsWith('vorratige menge')||h==='menge'||h==='on hand quantity');
+    if(iId<0||iProd<0)throw new Error('Spalten „id“ und „Produkt“ nicht gefunden – beim Export „Ich will Daten importieren“ anhaken');
+    const list=[];
+    for(let r=1;r<rows.length;r++){
+      const row=rows[r];const id=(row[iId]||'').trim();if(!id)continue;
+      const label=row[iProd]||'';
+      list.push({id,label,loc:iLoc>=0?(row[iLoc]||''):'',qty:iQty>=0?parseNum(row[iQty]):null,key:quantProductKey(label)});
+    }
+    if(!list.length)throw new Error('Keine Bestandszeilen mit ID gefunden');
+    quants={file:f.name,at:Date.now(),numeric:list.every(q=>/^\d+$/.test(q.id)),hasLoc:iLoc>=0,rows:list};
+    saveQuants();renderDone();
+    toast(`${list.length} Bestandszeilen eingelesen`);
+  }catch(e){st.innerHTML=`<div class="qbox" style="color:var(--danger)">⚠ ${esc(e.message||String(e))}</div>`}
+}
+// Plan: welche Zeile bekommt welche Menge
+function odooPlan(){
+  if(!quants)return null;
+  const zero=$('zero-open').checked;const loc=(settings.odooLoc||'WH/Bestand').trim();
+  const {sum}=invSums(false);
+  const upd=[],keep={excl:[],untr:[],unmatched:[],otherLoc:[]},byKey={};
+  for(const q of quants.rows){
+    if(quants.hasLoc&&q.loc&&norm(q.loc)!==norm(loc)){keep.otherLoc.push(q);continue}
+    if(!q.key||!products[q.key]){keep.unmatched.push(q);continue}
+    const p=products[q.key];
+    if(isExcl(p)&&!(exclTake()&&sum[q.key])){keep.excl.push(q);continue}
+    if(p.track===false){keep.untr.push(q);continue}
+    (byKey[q.key]||(byKey[q.key]=[])).push(q);
+  }
+  let nCount=0,nZero=0,nDup=0;
+  for(const [k,qs] of Object.entries(byKey)){
+    if(sum[k]){qs.forEach((q,i)=>upd.push({q,k,qty:i===0?sum[k].qty:0}));nCount++;nDup+=qs.length-1}
+    else if(zero){qs.forEach(q=>upd.push({q,k,qty:0}));nZero++}
+  }
+  // gezählte Produkte ohne Bestandszeile: nur Mengen ≠ 0 (ohne Zeile ist der Bestand in Odoo ohnehin 0)
+  const add=Object.keys(sum).filter(k=>!byKey[k]&&sum[k].qty!==0&&!keep.untr.some(q=>q.key===k)).map(k=>({k,qty:sum[k].qty}));
+  return {upd,add,keep,nCount,nZero,nDup,loc};
+}
+const csvF=s=>{s=String(s??'');return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
+function exportQuantUpdate(){
+  const pl=odooPlan();if(!pl)return toast('Erst die Odoo-Bestandsaufnahme einlesen',{err:true});
+  if(!pl.upd.length)return toast('Keine Bestandszeilen zu ändern');
+  const ad=$('acc-date').value;const idc=quants.numeric?'.id':'id';
+  const rows=[`${idc},inventory_quantity,inventory_quantity_set`+(ad?',accounting_date':''),...pl.upd.map(u=>[csvF(u.q.id),String(round(u.qty)),'True'].concat(ad?[ad]:[]).join(','))];
+  exportFile(`inventur_odoo_1_bestandszeilen_${fileStamp()}.csv`,rows.join('\r\n'),{bom:false});
+}
+function exportQuantNew(){
+  const pl=odooPlan();if(!pl)return toast('Erst die Odoo-Bestandsaufnahme einlesen',{err:true});
+  if(!pl.add.length)return toast('Keine neuen Bestandszeilen nötig');
   const ad=$('acc-date').value;
-  const rows=['product_id,location_id,inventory_quantity'+(ad?',accounting_date':''),...keys.map(k=>[f(val(k)),f(loc),String(round(sum[k].qty))].concat(ad?[ad]:[]).join(','))];
-  exportFile(`inventur_odoo_import_${fileStamp()}.csv`,rows.join('\r\n'),{bom:false});
-  const warn=[];
-  const unk=inv.filter(e=>e.unk).length;if(unk)warn.push(`${unk} unbekannte Barcodes`);
-  const untr=new Set(inv.filter(e=>!e.unk&&products[e.key]&&products[e.key].track===false).map(e=>e.key)).size;if(untr)warn.push(`${untr} nicht bestandsgeführte`);
-  if(warn.length)setTimeout(()=>toast('Nicht in der Odoo-Datei: '+warn.join(', '),{err:true}),2700);
-  if(amb.length)setTimeout(()=>toast(`${new Set(amb).size} Produkte ohne Ref./Barcode mit doppeltem Namen – im Probe-Import prüfen`,{err:true}),5600);
+  const keys=pl.add.map(a=>a.k);
+  const useId=keys.every(k=>products[k].vid);const numeric=useId&&keys.every(k=>/^\d+$/.test(String(products[k].vid).replace(/[.\s]/g,'')));
+  const {val}=odooProductValue();
+  const pv=k=>useId?(numeric?String(products[k].vid).replace(/[.\s]/g,''):products[k].vid):val(k);
+  const head=useId?(numeric?'product_id/.id':'product_id/id'):'product_id';
+  const rows=[head+',location_id,inventory_quantity'+(ad?',accounting_date':''),...pl.add.map(a=>[csvF(pv(a.k)),csvF(pl.loc),String(round(a.qty))].concat(ad?[ad]:[]).join(','))];
+  exportFile(`inventur_odoo_2_neue_bestandszeilen_${fileStamp()}.csv`,rows.join('\r\n'),{bom:false});
+}
+function renderOdooPlan(){
+  const qi=$('quant-info'),pe=$('odoo-plan');
+  if(!quants){qi.innerHTML='<div class="qbox">Noch keine Bestandsaufnahme eingelesen. Ohne sie lassen sich die Odoo-Dateien nicht erzeugen – ein Import ohne Zeilen-ID würde den Zählbestand zum alten Bestand <b>addieren</b>.</div>';pe.innerHTML='';$('btn-q1').disabled=$('btn-q2').disabled=true;return}
+  const pl=odooPlan();const old=Date.now()-quants.at>24*3600e3;
+  const lastInv=inv.reduce((m,e)=>Math.max(m,e.t||0),0);
+  qi.innerHTML=`<div class="qbox ok">✓ <b>${esc(quants.file)}</b> · ${quants.rows.length} Bestandszeilen · eingelesen ${fmtTime(quants.at)}${old?'<br><span style="color:var(--warn)">⚠ älter als 24 h – vor dem Buchen frisch aus Odoo exportieren.</span>':''}${lastInv>quants.at?'<br><span style="color:var(--muted)">Nach dem Einlesen wurde noch gezählt – das ist in Ordnung, die Dateien rechnen immer mit dem aktuellen Stand.</span>':''} <button class="linkish" data-act="clearQuants">entfernen</button></div>`;
+  const k=pl.keep;const li=(arr,lbl)=>arr.length?`<li>${arr.length} ${lbl}: ${esc(arr.slice(0,6).map(q=>q.label).join(' · '))}${arr.length>6?' …':''}</li>`:'';
+  pe.innerHTML=`<div class="qbox"><b>Datei 1:</b> ${pl.upd.length} Bestandszeilen – ${pl.nCount} gezählte Produkte${pl.nZero?`, ${pl.nZero} nicht gezählte auf 0`:''}${pl.nDup?` (${pl.nDup} doppelte Zeilen → 0)`:''}<br><b>Datei 2:</b> ${pl.add.length} gezählte Produkte ohne Bestandszeile in Odoo${pl.add.length?': '+esc(pl.add.slice(0,5).map(a=>products[a.k].name).join(' · '))+(pl.add.length>5?' …':''):''}
+  ${k.excl.length||k.untr.length||k.unmatched.length||k.otherLoc.length?`<div style="margin-top:6px"><b>Bleiben in Odoo unverändert:</b><ul>${li(k.excl,'Zeilen aus ausgenommenen Kategorien')}${li(k.untr,'Zeilen nicht bestandsgeführter Produkte')}${li(k.unmatched,'Zeilen ohne passendes Produkt in produkte.csv – bitte in Odoo von Hand prüfen')}${li(k.otherLoc,'Zeilen anderer Lagerorte')}</ul></div>`:''}</div>`;
+  $('btn-q1').disabled=!pl.upd.length;$('btn-q2').disabled=!pl.add.length;
+}
+function renderExclCats(){
+  const cats=allCats(true);const ex=exclCats();
+  const n=c=>Object.values(products).filter(p=>p.track!==false&&(p.cat===c)).length;
+  $('excl-cats').innerHTML=cats.length?cats.map(c=>`<button class="chip ${ex.includes(c)?'on':''}" data-act="toggleExcl" data-c="${esc(c)}">${ex.includes(c)?'⏸ ':''}${esc(c)} <b>${n(c)}</b></button>`).join(''):'<p class="hint-text" style="margin:0">Keine Produktkategorien in der produkte.csv – Spalte „Produktkategorie“ mit exportieren.</p>';
+}
+function toggleExcl(c){
+  const ex=exclCats().slice();const i=ex.indexOf(c);if(i>=0)ex.splice(i,1);else ex.push(c);
+  settings.exclCats=ex;saveSettings();rebuildIndex();renderInv();renderDone();
 }
 function exportSummary(){
   const {sum,keys}=invSums($('zero-open').checked);
@@ -1264,7 +1460,7 @@ function printInv(){
 function clearInv(){
   if(!inv.length)return toast('Inventurliste ist schon leer');
   if(!confirm(`Alle ${inv.length} Zählungen auf diesem Gerät löschen?\n\nHast du die Zählliste vorher exportiert?`))return;
-  inv=[];invCurrentId=null;saveInv();renderInv();toast('Inventur geleert');
+  inv=[];invCurrentId=null;quants=null;saveQuants();listStatus='';saveInv();renderInv();renderDone();toast('Inventur geleert');
 }
 
 // ═══════════ PRODUKTE-TAB ═══════════
@@ -1373,8 +1569,12 @@ const actions={
   invAdj:d=>invAdj(Number(d.d)), invZero:d=>invZero(d.key),
   clearInvQ:()=>{$('inv-q').value='';renderCount();focusScan()},
   listFilter:d=>{listFilter=d.a;renderInvList()},
+  listStatus:d=>{listStatus=listStatus===d.s?'':d.s;renderInvList()},
+  clearListQ:()=>{$('list-q').value='';renderInvList()},
+  showList:d=>showList(d.s),
   openMore:()=>{openLimit+=300;renderOpen()},
-  exportDetail, exportOdoo, exportSummary, exportOpen, printInv, clearInv,
+  exportDetail, exportQuantUpdate, exportQuantNew, exportSummary,
+  pickQuants:()=>$('quant-file').click(), clearQuants:()=>{if(confirm('Eingelesene Bestandsaufnahme entfernen?')){quants=null;saveQuants();renderDone()}}, toggleExcl:d=>toggleExcl(d.c), exportOpen, printInv, clearInv,
   pickMerge:()=>$('merge-file').click(),
   addManual, exportProducts, reloadCSV:()=>loadCSV(true),
   pickProductFile:()=>$('prod-file').click(),
@@ -1403,9 +1603,13 @@ $('set-loc').addEventListener('change',e=>{settings.odooLoc=e.target.value.trim(
 $('set-stock').addEventListener('change',e=>{settings.showStock=e.target.checked;saveSettings()});
 $('acc-date').addEventListener('change',e=>{settings.accDate=e.target.value;saveSettings()});
 $('open-nz').addEventListener('change',()=>{openLimit=150;renderOpen()});
+$('list-q').addEventListener('input',()=>renderInvList());
 $('set-sound').addEventListener('change',e=>{settings.sound=e.target.checked;saveSettings();if(settings.sound){unlockAudio();beep(true)}});
 $('set-wake').addEventListener('change',e=>{settings.wake=e.target.checked;saveSettings();if(!settings.wake&&wakeLock){wakeLock.release();wakeLock=null}else keepAwake()});
 $('merge-file').addEventListener('change',e=>{if(e.target.files.length)mergeFiles([...e.target.files]);e.target.value=''});
+$('quant-file').addEventListener('change',e=>{if(e.target.files.length)loadQuantFile(e.target.files[0]);e.target.value=''});
+$('zero-open').addEventListener('change',()=>renderOdooPlan());
+$('excl-take').addEventListener('change',e=>{settings.exclTakeCounted=e.target.checked;saveSettings();renderInv();renderDone()});
 $('prod-file').addEventListener('change',e=>{if(e.target.files[0])importProductFile(e.target.files[0]);e.target.value=''});
 
 // ═══════════ INSTALLATION / OFFLINE ═══════════
