@@ -585,7 +585,7 @@
 
 <script>
 'use strict';
-const APP_VERSION='v3.8';
+const APP_VERSION='v3.9';
 const CSV_URL='produkte.csv';
 const $=id=>document.getElementById(id);
 
@@ -661,20 +661,22 @@ function load(){
 
 // ═══════════ PRODUKTE ═══════════
 function rebuildIndex(){
-  idx={bc:{},ref:{},name:{},nameN:{},sorted:[],inv:[],excl:[],text:{}};
+  idx={bc:{},bcAll:{},ref:{},name:{},nameN:{},sorted:[],inv:[],excl:[],text:{}};
   for(const [k,p] of Object.entries(products)){
-    if(p.bc)idx.bc[p.bc]=k;
+    if(p.bc){if(!idx.bc[p.bc])idx.bc[p.bc]=k;(idx.bcAll[p.bc]||(idx.bcAll[p.bc]=[])).push(k)}
     if(p.ref)idx.ref[norm(p.ref)]=k;
     const nn=norm(p.name);idx.name[nn]=k;idx.nameN[nn]=(idx.nameN[nn]||0)+1;
     idx.text[k]=norm([p.name,p.bc,p.ref,p.cat].join(' '));
   }
   idx.sorted=Object.keys(products).sort((a,b)=>products[a].name.localeCompare(products[b].name,'de'));
   // Inventur: nur bestandsgeführte Produkte, ohne ausgenommene Kategorien (z. B. Eigenanbau – zählt die Landwirtschaft separat)
-  const tracked=idx.sorted.filter(k=>products[k].track!==false);
+  const tracked=idx.sorted.filter(k=>products[k].track!==false&&!products[k].kit);   // Bausätze: Odoo bucht nur die Komponenten
   idx.inv=tracked.filter(k=>!isExcl(products[k]));
   idx.excl=tracked.filter(k=>isExcl(products[k]));
+  idx.dupBc=Object.entries(idx.bcAll).filter(([,ks])=>ks.length>1);
   renderHeader();
 }
+const dupKeys=bc=>bc&&idx.bcAll[bc]&&idx.bcAll[bc].length>1?idx.bcAll[bc]:null;
 // Ausgenommene Kategorien: Standard = alle Kategorien mit „Eigenanbau“ im Namen
 function allCats(trackedOnly){return [...new Set(Object.values(products).filter(p=>p.cat&&(!trackedOnly||p.track!==false)).map(p=>p.cat))].sort((a,b)=>a.localeCompare(b,'de'))}
 function exclCats(){return Array.isArray(settings.exclCats)?settings.exclCats:allCats(false).filter(c=>/eigenanbau/i.test(c))}
@@ -707,7 +709,7 @@ function parseCSV(text){
   if(f!==''||row.length){row.push(f.trim());rows.push(row)}
   return rows.filter(r=>r.some(x=>x!==''));
 }
-const PROD_HDR=[['vid',['/id','product_variant','variante id']],['track',['verfolg','storable','track','bestandsgefuhrt','lagerfuhrung']],['stock',['vorratig','qty_available','on hand','onhand','lagerbestand','buchbestand']],['cat',['kategorie','category','categ']],['ref',['referenz','default_code','artikelnummer','artikel-nr']],['unit',['einheit','uom']],['bc',['barcode','ean','gtin']],['name',['name','produkt','bezeichnung','artikel']]];
+const PROD_HDR=[['vid',['/id','product_variant','variante id']],['kit',['bausatz','is_kits','is kits','stucklistentyp','bom_ids/type','bom type']],['track',['verfolg','storable','track','bestandsgefuhrt','lagerfuhrung']],['stock',['vorratig','qty_available','on hand','onhand','lagerbestand','buchbestand']],['cat',['kategorie','category','categ']],['ref',['referenz','default_code','artikelnummer','artikel-nr']],['unit',['einheit','uom']],['bc',['barcode','ean','gtin']],['name',['name','produkt','bezeichnung','artikel']]];
 function mapHeader(row,spec){
   const m={};
   row.forEach((c,i)=>{const n=norm(c);for(const [k,keys] of spec){if(m[k]===undefined&&keys.some(x=>n.includes(x))){m[k]=i;return}}});
@@ -721,12 +723,16 @@ function rowsToProducts(rows){
   const list=[];const seen=new Set();let dup=0;
   for(let r=start;r<rows.length;r++){
     const row=rows[r];const g0=k=>m[k]!==undefined?(row[m[k]]||'').trim():'';const g=k=>{const v=g0(k);return(k!=='track'&&k!=='stock'&&v==='False')?'':v};  // leere Odoo-Felder kommen teils als "False"
-    const name=g('name');if(!name)continue;
+    const name=g('name');
+    // Bausatz: Spalte „Ist Bausatz“ (Ja/Nein) oder „Stücklisten / Stücklistentyp“ (= „Bausatz“)
+    const kv=m.kit!==undefined?norm(g0('kit')):'';const isKit=!!kv&&(kv.includes('bausatz')||kv.includes('kit')||kv==='phantom'||['true','wahr','ja','yes','1'].includes(kv));
+    if(!name){if(isKit&&list.length)list[list.length-1][1].kit=true;continue}   // weitere Stückliste desselben Produkts
     const track=m.track!==undefined?parseBool(g('track')):undefined;
     const bc=g('bc').replace(/\s/g,''),ref=g('ref'),unit=g('unit'),cat=g('cat');
-    const key=productKey(bc,ref,name);
-    if(seen.has(key))dup++;seen.add(key);
-    const obj={bc,name,unit,ref,cat};if(track!==undefined)obj.track=track;
+    let key=productKey(bc,ref,name);
+    if(seen.has(key)){dup++;key=key+'#'+(ref||norm(name))+(seen.has(key+'#'+(ref||norm(name)))?'#'+r:'')}   // doppelter Barcode: beide Produkte behalten
+    seen.add(key);
+    const obj={bc,name,unit,ref,cat};if(track!==undefined)obj.track=track;if(isKit)obj.kit=true;
     if(m.vid!==undefined){const v=g('vid');if(v&&v!=='False')obj.vid=v}   // Odoo-ID der Produktvariante
     if(m.stock!==undefined){const st=parseNum(g('stock'));if(!isNaN(st))obj.stock=round(st)}
     list.push([key,obj]);
@@ -750,9 +756,9 @@ async function loadCSV(manual){
     const hasStock=list.some(([,p])=>p.stock!==undefined);
     settings.csvAt=Date.parse(res.headers.get('last-modified')||'')||0;settings.csvLoaded=Date.now();
     settings.stockAt=hasStock?(settings.csvAt||Date.now()):0;saveSettings();
-    const nVid=list.filter(([,p])=>p.vid).length;
-    productSource=`${list.length} Produkte aus produkte.csv${noBc?`, davon ${noBc} ohne Barcode`:''}${nVid?` · ${nVid} mit Odoo-ID`:' · ohne Odoo-ID (Spalte „Produkt/ID“ fehlt)'}${hasTrack?` · ${idx.inv.length} bestandsgeführt (nur diese zählen für die Inventur)`:' · Spalte „Bestand verfolgen“ fehlt – alle Produkte zählen für die Inventur'}${hasStock?` · Buchbestand Stand ${fmtTime(settings.stockAt)}`:''} · geladen ${fmtTime(Date.now())}`;
-    const dupN=list.length-Object.keys(next).length+Object.values(next).filter(p=>p.manual).length;
+    const nVid=list.filter(([,p])=>p.vid).length;const nKit=list.filter(([,p])=>p.kit).length;
+    productSource=`${list.length} Produkte aus produkte.csv${noBc?`, davon ${noBc} ohne Barcode`:''}${nVid?` · ${nVid} mit Odoo-ID`:' · ohne Odoo-ID (Spalte „Produkt/ID“ fehlt)'}${hasTrack?` · ${idx.inv.length} bestandsgeführt (nur diese zählen für die Inventur)`:' · Spalte „Bestand verfolgen“ fehlt – alle Produkte zählen für die Inventur'}${nKit?` · ${nKit} Bausätze (nicht in der Inventur)`:''}${idx.dupBc.length?` · ${idx.dupBc.length} doppelte Barcodes`:''}${hasStock?` · Buchbestand Stand ${fmtTime(settings.stockAt)}`:''} · geladen ${fmtTime(Date.now())}`;
+    const dupN=idx.dupBc.length;
     st.textContent=(navigator.onLine?'✓ ':'Offline · ')+idx.sorted.length+' Produkte geladen'+(dupN>0?` (${dupN} doppelte Barcodes!)`:'')+(settings.csvAt?' · produkte.csv vom '+fmtShort(settings.csvAt):'');st.style.color='var(--teal)';
     if(manual)toast('Produkte neu geladen');
     setTimeout(()=>{st.hidden=true},3500);
@@ -1041,9 +1047,13 @@ function newEntry(key,p,code,qty){
 }
 function invScan(code){
   if(!ensureSetup())return;
-  const key=findByCode(code);const p=key?products[key]:null;const k=key||('bc:'+code);
+  const key=findByCode(code);
+  const dk=key&&dupKeys(products[key].bc);
+  if(dk){beep(false);toast(`Barcode ${products[key].bc} ist in Odoo ${dk.length}× vergeben – bitte das richtige Produkt antippen`,{err:true});$('inv-q').value=products[key].bc;renderCount();return}
+  const p=key?products[key]:null;const k=key||('bc:'+code);
   beep(!!p);
   if(!p)toast('Unbekannter Barcode – bitte Notiz ergänzen',{err:true});
+  else if(p.kit)toast(`„${p.name}“ ist ein Bausatz – Odoo bucht nur die Komponenten. Bitte die Einzelteile zählen.`,{err:true});
   else if(p.track===false)toast(`„${p.name}“ ist in Odoo nicht bestandsgeführt`,{err:true});
   else if(isExcl(p))toast(exclTake()?`„${p.name}“ (${p.cat}): ausgenommene Kategorie – die gezählte Menge wird trotzdem übernommen`:`„${p.name}“: Kategorie ${p.cat} ist ausgenommen – kommt nicht in die Odoo-Dateien`,{err:!exclTake()});
   if(settings.askQty){invCount(k,p,code);return}
@@ -1052,7 +1062,7 @@ function invScan(code){
   invCurrentId=e.id;saveInv();renderInv();
   if(!p)setTimeout(()=>invNote(e.id),300);
 }
-function invPick(key){if(!ensureSetup())return;invCount(key,products[key],products[key].bc)}
+function invPick(key){if(!ensureSetup())return;if(products[key]&&products[key].kit)toast(`„${products[key].name}“ ist ein Bausatz – Odoo bucht nur die Komponenten. Bitte die Einzelteile zählen.`,{err:true});invCount(key,products[key],products[key].bc)}
 function invCount(k,p,code){
   const e=invEntryFor(k);const name=p?p.name:'Unbekannt ('+code+')';const unit=p?p.unit:'';
   const add=n=>{let x=invEntryFor(k);if(x){x.qty=round(x.qty+n);x.t=Date.now()}else{x=newEntry(k,p,code,n);inv.push(x)}invCurrentId=x.id;saveInv();renderInv();if(!p&&!x.note)setTimeout(()=>invNote(x.id),300)};
@@ -1175,19 +1185,22 @@ function renderCount(){
 // Status einer Zählung (für Hinweise an der Karte und die Filter in „Liste“)
 function entryStatus(e){
   const p=products[e.key];
-  const s={unk:!!e.unk||!p,untr:!!(p&&p.track===false),excl:!!(p&&p.track!==false&&isExcl(p)),note:!!e.note,zero:e.qty===0,diff:false};
+  const s={unk:!!e.unk||!p,kit:!!(p&&p.kit),untr:!!(p&&p.track===false&&!p.kit),excl:!!(p&&p.track!==false&&isExcl(p)),note:!!e.note,zero:e.qty===0,diff:false};
   if(p&&!s.untr&&hasStockData()&&p.stock!==undefined)s.diff=countedAll(e.key)!==round(p.stock);
-  s.msg=s.unk||s.untr||(s.excl&&!exclTake());
+  s.excl=s.excl&&!s.kit;s.dup=!!(p&&dupKeys(p.bc));
+  s.msg=s.unk||s.untr||s.kit||s.dup||(s.excl&&!exclTake());
   return s;
 }
 function entryFlags(e){
   const s=entryStatus(e),p=products[e.key],f=[];
   if(s.unk)f.push({cls:'bad',txt:'⚠ Unbekannter Artikel – nicht in den Odoo-Dateien'});
+  if(s.kit)f.push({cls:'bad',txt:'⚠ Bausatz – Odoo bucht nur die Komponenten. Einzelteile zählen, diese Zeile kommt nicht in die Odoo-Dateien'});
+  if(s.dup)f.push({cls:'',txt:`⚠ Barcode ${esc(p.bc)} in Odoo mehrfach vergeben – Produkt prüfen`});
   if(s.untr)f.push({cls:'',txt:'⚠ nicht bestandsgeführt – nicht in den Odoo-Dateien'});
   if(s.excl)f.push({cls:'info',txt:exclTake()?`⏸ Kategorie ${esc(p.cat)} ausgenommen – gezählte Menge wird trotzdem übernommen`:`⏸ Kategorie ${esc(p.cat)} ausgenommen – nicht in den Odoo-Dateien`});
   return f;
 }
-const LIST_STATUS=[['','Alle'],['msg','⚠ Alle Meldungen'],['unk','Unbekannt'],['untr','Nicht bestandsgeführt'],['excl','Kategorie ausgenommen'],['diff','≠ Buchbestand'],['zero','Menge 0'],['note','Mit Notiz']];
+const LIST_STATUS=[['','Alle'],['msg','⚠ Alle Meldungen'],['unk','Unbekannt'],['kit','Bausatz'],['dup','Barcode doppelt'],['untr','Nicht bestandsgeführt'],['excl','Kategorie ausgenommen'],['diff','≠ Buchbestand'],['zero','Menge 0'],['note','Mit Notiz']];
 let listStatus='';
 function renderInvList(){
   const areas=[...new Set(inv.map(e=>e.area))].sort((a,b)=>a.localeCompare(b,'de'));
@@ -1251,9 +1264,12 @@ function renderDone(){
   const lk=(k,txt,col)=>c(k)?`<p class="hint-text" style="margin:8px 0 0;color:${col}">${txt.replace('#',c(k))} <button class="linkish" data-act="showList" data-s="${k}">anzeigen</button></p>`:'';
   $('done-areas').innerHTML=names.length?`<table class="t"><tr><th>Bereich</th><th>Positionen</th><th>Gezählt von</th></tr>${names.map(a=>`<tr><td><b>${esc(a)}</b></td><td>${areas[a].n}</td><td>${esc([...areas[a].who].join(', '))}</td></tr>`).join('')}</table>`
     +lk('unk','⚠ # Positionen mit unbekanntem Artikel – nicht in den Odoo-Dateien.','var(--danger)')
+    +lk('kit','⚠ # Positionen sind Bausätze – Odoo bucht nur die Komponenten. Einzelteile nachzählen, Bausatz-Zeilen kommen nicht in die Odoo-Dateien.','var(--danger)')
+    +lk('dup','⚠ # Positionen mit doppelt vergebenem Barcode – prüfen, ob das richtige Produkt gezählt wurde.','var(--warn)')
     +lk('untr','⚠ # Positionen nicht bestandsgeführt – nicht in den Odoo-Dateien. Falls sie doch Bestand haben: in Odoo „Bestand verfolgen“ anhaken und produkte.csv neu exportieren.','var(--warn)')
     +lk('excl',exclTake()?'⏸ # Positionen aus ausgenommenen Kategorien – werden übernommen (Option unter 2).':'⏸ # Positionen aus ausgenommenen Kategorien – nicht in den Odoo-Dateien.','var(--muted)')
     :'<p class="hint-text" style="margin:0">Noch keine Zählungen.</p>';
+  if(idx.dupBc.length)$('done-areas').innerHTML+=`<p class="hint-text" style="margin:8px 0 0;color:var(--warn)">In Odoo doppelt vergebene Barcodes (bitte bereinigen): ${idx.dupBc.slice(0,5).map(([bc,ks])=>esc(bc+' – '+ks.map(k=>products[k].name).join(' / '))).join('; ')}${idx.dupBc.length>5?' …':''}</p>`;
   $('excl-take').checked=exclTake();renderExclCats();renderOdooPlan();
 }
 
@@ -1276,7 +1292,8 @@ async function mergeFiles(files){
       const id=g('id');if(!id)continue;
       if(have.has(id)){skipped++;continue}
       const bc=g('bc'),ref=g('ref'),name=g('name');
-      const key=(bc&&findByCode(bc))||(ref&&idx.ref[norm(ref)])||idx.name[norm(name)]||(bc?'bc:'+bc:'name:'+norm(name));
+      let key=(ref&&idx.ref[norm(ref)])||(bc&&findByCode(bc))||idx.name[norm(name)]||(bc?'bc:'+bc:'name:'+norm(name));
+      const dk=products[key]&&dupKeys(products[key].bc);if(dk){const byName=dk.find(x=>norm(products[x].name)===norm(name));if(byName)key=byName}
       const p=products[key];
       const qty=parseNum(g('qty'));if(isNaN(qty)){continue}
       inv.push({id,key,bc:bc||(p?p.bc:''),ref:ref||(p?p.ref:''),name:p?p.name:(name||'Unbekannt'),unit:g('unit')||(p?p.unit:''),qty:round(qty),area:g('area')||'?',who:g('who'),dev:g('dev')||'import',t:Date.parse(g('t').replace(' ','T'))||Date.now(),note:g('note'),unk:!p});
@@ -1289,7 +1306,7 @@ async function mergeFiles(files){
 }
 function invSums(withZero){
   const sum={};
-  inv.forEach(e=>{const p=products[e.key];if(e.unk||!p||p.track===false||(isExcl(p)&&!exclTake()))return;const x=sum[e.key]||(sum[e.key]={qty:0,areas:new Set(),who:new Set()});x.qty=round(x.qty+e.qty);x.areas.add(e.area);if(e.who)x.who.add(e.who)});
+  inv.forEach(e=>{const p=products[e.key];if(e.unk||!p||p.track===false||p.kit||(isExcl(p)&&!exclTake()))return;const x=sum[e.key]||(sum[e.key]={qty:0,areas:new Set(),who:new Set()});x.qty=round(x.qty+e.qty);x.areas.add(e.area);if(e.who)x.who.add(e.who)});
   if(withZero)idx.inv.forEach(k=>{if(!sum[k])sum[k]={qty:0,areas:new Set(['nicht gezählt → 0']),who:new Set()}});
   const keys=Object.keys(sum).sort((a,b)=>products[a].name.localeCompare(products[b].name,'de'));
   return {sum,keys};
@@ -1349,7 +1366,7 @@ async function readXlsx(buf){
 function quantProductKey(label){
   label=String(label||'').trim();if(!label)return null;
   const m=label.match(/^\[([^\]]+)\]\s*(.*)$/);const ref=m?m[1].trim():'',name=(m?m[2]:label).trim();
-  if(ref){const k=idx.ref[norm(ref)]||findByCode(ref);if(k)return k}
+  if(ref){const k=idx.ref[norm(ref)]||findByCode(ref);if(k&&!dupKeys(products[k].bc))return k;if(k){const ks=dupKeys(products[k].bc).filter(x=>norm(products[x].name)===norm(name));if(ks.length===1)return ks[0]}}
   const nn=norm(name);if(idx.name[nn]&&idx.nameN[nn]===1)return idx.name[nn];
   return null;
 }
@@ -1382,11 +1399,12 @@ function odooPlan(){
   if(!quants)return null;
   const zero=$('zero-open').checked;const loc=(settings.odooLoc||'WH/Bestand').trim();
   const {sum}=invSums(false);
-  const upd=[],keep={excl:[],untr:[],unmatched:[],otherLoc:[]},byKey={};
+  const upd=[],keep={excl:[],untr:[],kit:[],unmatched:[],otherLoc:[]},byKey={};
   for(const q of quants.rows){
     if(quants.hasLoc&&q.loc&&norm(q.loc)!==norm(loc)){keep.otherLoc.push(q);continue}
     if(!q.key||!products[q.key]){keep.unmatched.push(q);continue}
     const p=products[q.key];
+    if(p.kit){keep.kit.push(q);continue}
     if(isExcl(p)&&!(exclTake()&&sum[q.key])){keep.excl.push(q);continue}
     if(p.track===false){keep.untr.push(q);continue}
     (byKey[q.key]||(byKey[q.key]=[])).push(q);
@@ -1428,7 +1446,7 @@ function renderOdooPlan(){
   qi.innerHTML=`<div class="qbox ok">✓ <b>${esc(quants.file)}</b> · ${quants.rows.length} Bestandszeilen · eingelesen ${fmtTime(quants.at)}${old?'<br><span style="color:var(--warn)">⚠ älter als 24 h – vor dem Buchen frisch aus Odoo exportieren.</span>':''}${lastInv>quants.at?'<br><span style="color:var(--muted)">Nach dem Einlesen wurde noch gezählt – das ist in Ordnung, die Dateien rechnen immer mit dem aktuellen Stand.</span>':''} <button class="linkish" data-act="clearQuants">entfernen</button></div>`;
   const k=pl.keep;const li=(arr,lbl)=>arr.length?`<li>${arr.length} ${lbl}: ${esc(arr.slice(0,6).map(q=>q.label).join(' · '))}${arr.length>6?' …':''}</li>`:'';
   pe.innerHTML=`<div class="qbox"><b>Datei 1:</b> ${pl.upd.length} Bestandszeilen – ${pl.nCount} gezählte Produkte${pl.nZero?`, ${pl.nZero} nicht gezählte auf 0`:''}${pl.nDup?` (${pl.nDup} doppelte Zeilen → 0)`:''}<br><b>Datei 2:</b> ${pl.add.length} gezählte Produkte ohne Bestandszeile in Odoo${pl.add.length?': '+esc(pl.add.slice(0,5).map(a=>products[a.k].name).join(' · '))+(pl.add.length>5?' …':''):''}
-  ${k.excl.length||k.untr.length||k.unmatched.length||k.otherLoc.length?`<div style="margin-top:6px"><b>Bleiben in Odoo unverändert:</b><ul>${li(k.excl,'Zeilen aus ausgenommenen Kategorien')}${li(k.untr,'Zeilen nicht bestandsgeführter Produkte')}${li(k.unmatched,'Zeilen ohne passendes Produkt in produkte.csv – bitte in Odoo von Hand prüfen')}${li(k.otherLoc,'Zeilen anderer Lagerorte')}</ul></div>`:''}</div>`;
+  ${k.excl.length||k.untr.length||k.kit.length||k.unmatched.length||k.otherLoc.length?`<div style="margin-top:6px"><b>Bleiben in Odoo unverändert:</b><ul>${li(k.excl,'Zeilen aus ausgenommenen Kategorien')}${li(k.untr,'Zeilen nicht bestandsgeführter Produkte')}${li(k.kit,'Zeilen von Bausätzen')}${li(k.unmatched,'Zeilen ohne passendes Produkt in produkte.csv – bitte in Odoo von Hand prüfen')}${li(k.otherLoc,'Zeilen anderer Lagerorte')}</ul></div>`:''}</div>`;
   $('btn-q1').disabled=!pl.upd.length;$('btn-q2').disabled=!pl.add.length;
 }
 function renderExclCats(){
